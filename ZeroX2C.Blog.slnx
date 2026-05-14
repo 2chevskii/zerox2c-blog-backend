@@ -10,6 +10,6 @@
     <File Path="global.json" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Project/Project.csproj" />
+    <Project Path="src/ZeroX2C.Blog.API/ZeroX2C.Blog.API.csproj" />
   </Folder>
 </Solution>
