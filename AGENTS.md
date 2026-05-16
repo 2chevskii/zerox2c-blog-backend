@@ -8,6 +8,16 @@ This is the backend for the 0x2c.dev personal website. It is an ASP.NET Core mod
 
 The current application project is `src/ZeroX2C.Blog.API/ZeroX2C.Blog.API.csproj`. The solution entry point is `ZeroX2C.Blog.slnx`.
 
+## Related Repositories
+
+This repository is part of the local 0x2c.dev blog workspace:
+
+- `../blog-backend` - ASP.NET Core backend API and persistence.
+- `../blog-frontend` - public Vue frontend for readers.
+- `../blog-admin-frontend` - Vue admin frontend for content management.
+
+Agents may inspect and modify any of these three sibling repositories when a task requires coordinated backend, public frontend, or admin frontend changes. Keep commits focused per repository and do not mix unrelated work.
+
 Read these docs before making broad changes:
 
 - `README.md` for setup and current API surface.
