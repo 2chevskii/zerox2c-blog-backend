@@ -98,6 +98,12 @@ public sealed class AdminPostsController(IAdminPostService adminPostService) : C
             AdminPostOperationStatus.TagNotFound => ValidationProblem(
                 "One or more tags were not found."
             ),
+            AdminPostOperationStatus.ImageNotFound => ValidationProblem(
+                "One or more images were not found."
+            ),
+            AdminPostOperationStatus.InvalidImagePurpose => ValidationProblem(
+                "Cover image must use cover purpose and banner image must use banner purpose."
+            ),
             _ => Problem(),
         };
 

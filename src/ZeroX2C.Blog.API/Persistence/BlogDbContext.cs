@@ -73,6 +73,16 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(post => post.Slug).IsUnique();
             entity.HasIndex(post => new { post.Status, post.PublishedAt });
             entity.HasIndex(post => post.CreatedAt);
+
+            entity.HasOne<Image>()
+                .WithMany()
+                .HasForeignKey(post => post.CoverImageId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne<Image>()
+                .WithMany()
+                .HasForeignKey(post => post.BannerImageId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<Tag>(entity =>
@@ -107,6 +117,24 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
                 .WithMany(tag => tag.PostTags)
                 .HasForeignKey(postTag => postTag.TagId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Image>(entity =>
+        {
+            entity.ToTable("Images");
+            entity.HasKey(image => image.Id);
+
+            entity.Property(image => image.OriginalFileName).HasMaxLength(256).IsRequired();
+            entity.Property(image => image.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(image => image.SizeBytes).IsRequired();
+            entity.Property(image => image.Purpose)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(image => image.Content).HasColumnType("longblob").IsRequired();
+            entity.Property(image => image.CreatedAt).IsRequired();
+
+            entity.HasIndex(image => image.Purpose);
         });
     }
 }

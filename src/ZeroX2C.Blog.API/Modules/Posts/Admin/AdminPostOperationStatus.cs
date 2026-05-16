@@ -7,4 +7,6 @@ public enum AdminPostOperationStatus
     SlugAlreadyTaken,
     InvalidSlug,
     TagNotFound,
+    ImageNotFound,
+    InvalidImagePurpose,
 }

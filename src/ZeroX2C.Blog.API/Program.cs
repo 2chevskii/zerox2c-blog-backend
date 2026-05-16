@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using ZeroX2C.Blog.API.CrossCutting.Api;
 using ZeroX2C.Blog.API.CrossCutting.Bootstrap;
+using ZeroX2C.Blog.API.Modules.Assets.Images;
 using ZeroX2C.Blog.API.Modules.Posts;
 using ZeroX2C.Blog.API.Modules.Posts.Admin;
 using ZeroX2C.Blog.API.Modules.Users;
@@ -52,6 +53,8 @@ builder.Services.AddSingleton<IAuthenticationContext>(serviceProvider =>
     serviceProvider.GetRequiredService<IAuthenticationContextManager>().Current
 );
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IImageQueryService, ImageQueryService>();
+builder.Services.AddScoped<IAdminImageService, AdminImageService>();
 builder.Services.AddScoped<IPostQueryService, PostQueryService>();
 builder.Services.AddScoped<IAdminPostService, AdminPostService>();
 builder.Services.AddScoped<IAdminTagService, AdminTagService>();

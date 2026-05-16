@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ZeroX2C.Blog.API.Modules.Assets.Images;
 using ZeroX2C.Blog.API.Modules.Posts.Contracts;
 using ZeroX2C.Blog.API.Modules.Posts.Tags;
 using ZeroX2C.Blog.API.Modules.Users.Auth;
@@ -83,6 +84,16 @@ public sealed class AdminPostService(
             return AdminPostOperationResult<AdminPostResponse>.Failure(tagsResult.Status);
         }
 
+        var imagesResult = await ValidatePostImagesAsync(
+            request.CoverImageId,
+            request.BannerImageId,
+            cancellationToken
+        );
+        if (imagesResult.Status != AdminPostOperationStatus.Success)
+        {
+            return AdminPostOperationResult<AdminPostResponse>.Failure(imagesResult.Status);
+        }
+
         var postId = Guid.CreateVersion7();
         var post = new Post
         {
@@ -137,6 +148,16 @@ public sealed class AdminPostService(
         if (tagsResult.Status != AdminPostOperationStatus.Success)
         {
             return AdminPostOperationResult<AdminPostResponse>.Failure(tagsResult.Status);
+        }
+
+        var imagesResult = await ValidatePostImagesAsync(
+            request.CoverImageId,
+            request.BannerImageId,
+            cancellationToken
+        );
+        if (imagesResult.Status != AdminPostOperationStatus.Success)
+        {
+            return AdminPostOperationResult<AdminPostResponse>.Failure(imagesResult.Status);
         }
 
         post.Slug = slugResult.Value;
@@ -308,6 +329,54 @@ public sealed class AdminPostService(
         return tags.Count == requestedTagIds.Length
             ? TagCollectionOperationResult.Success(tags)
             : TagCollectionOperationResult.Failure(AdminPostOperationStatus.TagNotFound);
+    }
+
+    private async Task<PostImageOperationResult> ValidatePostImagesAsync(
+        Guid? coverImageId,
+        Guid? bannerImageId,
+        CancellationToken cancellationToken
+    )
+    {
+        var imageIds = new[] { coverImageId, bannerImageId }
+            .Where(imageId => imageId.HasValue)
+            .Select(imageId => imageId!.Value)
+            .Distinct()
+            .ToArray();
+        if (imageIds.Length == 0)
+        {
+            return PostImageOperationResult.Success();
+        }
+
+        var images = await dbContext.Images
+            .Where(image => imageIds.Contains(image.Id) && !image.IsDeleted)
+            .ToDictionaryAsync(image => image.Id, cancellationToken);
+
+        if (images.Count != imageIds.Length)
+        {
+            return PostImageOperationResult.Failure(AdminPostOperationStatus.ImageNotFound);
+        }
+
+        if (
+            coverImageId is Guid coverId
+            && images[coverId].Purpose != ImagePurpose.Cover
+        )
+        {
+            return PostImageOperationResult.Failure(
+                AdminPostOperationStatus.InvalidImagePurpose
+            );
+        }
+
+        if (
+            bannerImageId is Guid bannerId
+            && images[bannerId].Purpose != ImagePurpose.Banner
+        )
+        {
+            return PostImageOperationResult.Failure(
+                AdminPostOperationStatus.InvalidImagePurpose
+            );
+        }
+
+        return PostImageOperationResult.Success();
     }
 
     private static PostTag CreatePostTag(Guid postId, Tag tag) =>
