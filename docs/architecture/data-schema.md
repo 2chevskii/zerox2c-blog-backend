@@ -140,6 +140,10 @@ Constraints and indexes:
 - `CreatedAt` required.
 - Index: `Status`, `PublishedAt`.
 - Index: `CreatedAt`.
+- Index: `CoverImageId`.
+- Index: `BannerImageId`.
+- Optional foreign key from `CoverImageId` to `Images`, `SetNull` on delete.
+- Optional foreign key from `BannerImageId` to `Images`, `SetNull` on delete.
 
 Status values:
 
@@ -155,6 +159,8 @@ Rules:
 - Publish sets `PublishedBy` and `PublishedAt`.
 - Unpublish clears publish metadata.
 - Slugs are optional, but if present they must be valid and unique.
+- Cover images must reference active images with `Cover` purpose.
+- Banner images must reference active images with `Banner` purpose.
 
 ## 5. Tag
 
@@ -209,29 +215,39 @@ Rules:
 
 ## 7. Image
 
-Implemented placeholder entity: `Modules/Assets/Images/Image.cs`.
+Implemented entity: `Modules/Assets/Images/Image.cs`.
 
-Current fields:
+Fields:
 
 - `Id`
+- `OriginalFileName`
+- `ContentType`
+- `SizeBytes`
+- `Purpose`
+- `Content`
 - Audit fields from `EntityBase`
 
-Current state:
+Constraints and indexes:
 
-- No image metadata fields are implemented yet.
-- No blob field is implemented yet.
-- No image endpoints are implemented yet.
+- `OriginalFileName` max length: 256, required.
+- `ContentType` max length: 128, required.
+- `SizeBytes` required.
+- `Purpose` stored as string, max length: 32, required.
+- `Content` stored as `longblob`, required.
+- `CreatedAt` required.
+- Index: `Purpose`.
 
-Planned fields:
+Purpose values:
 
-- File name.
-- Content type.
-- Size in bytes.
-- Width and height.
-- Alt text.
-- Blob or object-storage key.
-- Hash for optional deduplication.
-- Usage/context metadata if needed.
+- `Cover`
+- `Banner`
+- `Embedded`
+
+Rules:
+
+- Images are soft-deleted.
+- Admin uploads currently accept JPEG, PNG, WebP, and GIF up to 5 MB.
+- Public retrieval streams the blob from `GET /api/images/{id}`.
 
 ## 8. Planned Entities
 
@@ -343,6 +359,11 @@ erDiagram
 
     IMAGE {
         Guid Id
+        string OriginalFileName
+        string ContentType
+        long SizeBytes
+        string Purpose
+        bytes Content
     }
 ```
 
@@ -352,5 +373,6 @@ erDiagram
 - Whether slug redirects are needed.
 - Whether pages should share a publication abstraction with posts.
 - Whether comments are flat or threaded.
-- Whether image blobs should live in MySQL for v1 or move straight to object storage.
+- When image blobs should move from MySQL to object storage.
+- Whether image dimensions, alt text, and deduplication hashes should be added.
 - Whether blocked users should be rejected from all login flows consistently.

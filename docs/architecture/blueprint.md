@@ -10,6 +10,7 @@ The backend powers a personal website with:
 
 - Public blog-post read APIs.
 - Admin APIs for posts, tags, and users.
+- Image/media upload and retrieval for blog content.
 - Custom users, local credentials, Steam login, JWT authentication, and role-based authorization.
 - EF Core persistence with audited entity writes.
 - Startup migrations and technical-user bootstrap.
@@ -18,7 +19,6 @@ Planned additions:
 
 - Informational pages.
 - Comments.
-- Image/media upload and retrieval.
 - Google and GitHub external login.
 - Sitemap and health endpoints.
 - Test projects and integration tests.
@@ -87,7 +87,7 @@ Current module layout:
 ```text
 Modules/
   Assets/
-    Images/               Early image/media placeholder.
+    Images/               MySQL-backed image entity, upload/read controllers, image services.
   Posts/
     Admin/                Admin post/tag use cases and operation results.
     Contracts/            Post DTOs.
@@ -127,9 +127,11 @@ Implemented public API:
 - `GET /api/posts`
 - `GET /api/posts/{id:guid}`
 - `GET /api/posts/{slug}`
+- `GET /api/images/{id:guid}`
 
 Implemented admin API:
 
+- `POST /api/admin/images`
 - `GET /api/admin/users`
 - `PUT /api/admin/users/{id}/role`
 - `POST /api/admin/users/{id}/block`
@@ -153,7 +155,6 @@ Planned API:
 - Public tags endpoint.
 - Page public/admin endpoints.
 - Comment public/admin endpoints.
-- Image upload and retrieval endpoints.
 - Sitemap endpoint.
 - Health endpoints.
 
@@ -246,6 +247,15 @@ Slug rules:
 - Lowercase ASCII letters, digits, and hyphen-separated segments.
 - Post slug max length: 160.
 - Tag name max length: 20.
+
+Image rules:
+
+- `Image` rows store blob bytes in MySQL for the current scope.
+- Uploads are admin-only and use multipart form-data with `file` and `purpose`.
+- Public retrieval is by image id so post bodies can embed `/api/images/{id}` URLs.
+- Supported purposes are `Cover`, `Banner`, and `Embedded`.
+- Post cover and banner image ids must refer to active images with matching purpose.
+- Keep image storage behind the `Modules/Assets/Images` service/controller boundary so MySQL blobs can move to object storage later without changing post services or frontend contracts.
 
 ## 10. Security Notes
 

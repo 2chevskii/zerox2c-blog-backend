@@ -104,6 +104,7 @@ Completed:
 - Admin post list/get/create/update/publish/unpublish/delete endpoints exist.
 - Admin tag list/get/create/update/delete endpoints exist.
 - Post/tag assignment is implemented.
+- Post cover/banner references are validated against active image rows and expected image purpose.
 - Public queries hide draft and soft-deleted posts.
 - Admin queries hide soft-deleted posts.
 
@@ -112,26 +113,25 @@ Still needed:
 - Public tag list/detail endpoints if frontend needs them.
 - Archive behavior beyond the enum value.
 - SEO fields if still required.
-- Banner/cover image relationship enforcement after media is implemented.
 - Tests for visibility, slug uniqueness, tag assignment, publish/unpublish, and soft delete.
 
 ## Phase 5. Media
 
-Status: Planned.
+Status: Partial.
 
 Completed:
 
-- Placeholder `Image` entity exists.
+- `Image` entity stores original file name, content type, size, purpose, and MySQL blob content.
+- Admin image upload endpoint exists.
+- Public image retrieval endpoint exists.
+- Upload validation covers empty files, 5 MB max size, and allowed image content types.
+- Post cover, banner, and embedded image integration exists for the current admin/editor scope.
 
 Still needed:
 
-- Decide storage shape for v1: MySQL blob vs immediate object storage abstraction.
-- Add image metadata fields.
-- Add upload endpoint.
-- Add retrieval endpoint.
-- Validate content type and size.
-- Add post banner/body-image integration.
 - Add comment image integration after comments exist.
+- Add optional width/height, alt text, and deduplication metadata if needed.
+- Decide when to move blobs from MySQL to object storage.
 
 ## Phase 6. Pages
 
@@ -182,7 +182,7 @@ Near-term, highest leverage:
 2. Harden admin user role rules around known superadmin invariants.
 3. Add public tag endpoints if the frontend needs tag navigation.
 4. Implement health checks and basic production readiness docs.
-5. Start the media module only after deciding whether v1 truly stores blobs in MySQL.
+5. Add media tests and decide whether width/height metadata is needed before public frontend work.
 
 ## Work-Splitting Guidance
 

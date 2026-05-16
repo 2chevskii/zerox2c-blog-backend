@@ -22,7 +22,7 @@ src/ZeroX2C.Blog.API/
     Api/                  Route constraints and API infrastructure.
     Bootstrap/            Startup bootstrap pipeline.
   Modules/
-    Assets/               Early media/image domain placeholder.
+    Assets/               MySQL-backed image upload and retrieval.
     Posts/                Blog posts, tags, public queries, admin use cases.
     Shared/               Generic shared domain primitives.
     Users/                Users, authentication, authorization, admin user operations.
@@ -47,9 +47,11 @@ Public endpoints:
 - `GET /api/posts`
 - `GET /api/posts/{id:guid}`
 - `GET /api/posts/{slug}`
+- `GET /api/images/{id:guid}`
 
 Admin endpoints:
 
+- `POST /api/admin/images`
 - `GET /api/admin/users`
 - `PUT /api/admin/users/{id}/role`
 - `PUT /api/admin/users/{id}/password`
@@ -68,7 +70,7 @@ Admin endpoints:
 - `PUT /api/admin/tags/{id}`
 - `DELETE /api/admin/tags/{id}`
 
-Planned but not currently implemented: pages, comments, image upload/storage endpoints, Google/GitHub external login, sitemap, health checks, and integration tests.
+Planned but not currently implemented: pages, comments, Google/GitHub external login, sitemap, health checks, and integration tests.
 
 ## Local Development
 

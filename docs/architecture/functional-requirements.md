@@ -19,6 +19,8 @@ Implemented:
 - Public post listing and post details by id or slug.
 - Admin post CRUD-like management: list, get, create, update, publish, unpublish, delete.
 - Admin tag management: list, get, create, update, delete.
+- Admin image upload for cover, banner, and embedded post images.
+- Public image retrieval by id.
 - Soft delete and audit stamping for entities derived from `EntityBase`.
 - Startup migrations and application bootstrap.
 
@@ -27,7 +29,6 @@ Planned but not implemented:
 - Google and GitHub external login.
 - Comments.
 - Informational pages.
-- Image upload/storage endpoints.
 - Public tag listing endpoint.
 - Sitemap endpoint.
 - Health endpoints.
@@ -184,6 +185,8 @@ Rules:
 - Generated post slugs must be unique; numeric suffixes are appended when needed.
 - Explicitly provided post slugs must be unique and match the slug pattern, otherwise the request fails validation.
 - Post tag assignments must refer to active, non-deleted tags.
+- Cover image assignments must refer to active images uploaded with `Cover` purpose.
+- Banner image assignments must refer to active images uploaded with `Banner` purpose.
 
 ## 7. Tags
 
@@ -218,17 +221,26 @@ Current state:
 
 ## 9. Media
 
-Planned behavior:
+Implemented behavior:
 
 - The backend stores image media for internal site content.
+- Allowed post image purposes are `Cover`, `Banner`, and `Embedded`.
+- Admins upload images through `POST /api/admin/images` as multipart form-data with `file` and `purpose`.
+- Public clients retrieve stored images through `GET /api/images/{id}`.
+- Images are stored as MySQL blobs with original file name, content type, size, purpose, and audit metadata.
+- Upload validation rejects empty files, files larger than 5 MB, and non-image content types outside JPEG, PNG, WebP, and GIF.
+- Post cover and banner references are validated against active image rows and expected image purpose.
+
+Planned behavior:
+
 - Allowed use cases include blog post banners, post body images, and comment images.
 - Non-image file storage is out of scope for v1.
 - Media storage should stay behind a module boundary so MySQL blob storage can later move to object storage.
 
 Current state:
 
-- `Modules/Assets/Images/Image.cs` exists as an early placeholder entity.
-- No image upload, retrieval, validation, or storage endpoints are implemented.
+- Cover, banner, and embedded post images are implemented.
+- Comment images are planned with comments.
 
 ## 10. Comments
 

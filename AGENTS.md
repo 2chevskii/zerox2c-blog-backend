@@ -114,7 +114,7 @@ Rules:
   - Apply migrations.
   - Run `ApplicationBootstrapper`.
   - Run the app.
-- Do not leave API processes running after local verification; stop any `dotnet run` or application executable started during the task before finishing.
+- Do not leave API processes, frontend dev servers, preview servers, watchers, or other long-running development processes running after local verification. Stop anything you started before finishing unless the user explicitly asks to keep it running.
 
 ## Workflow Rules
 
