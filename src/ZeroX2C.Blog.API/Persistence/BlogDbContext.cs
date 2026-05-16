@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ZeroX2C.Blog.API.Modules.Assets.Images;
 using ZeroX2C.Blog.API.Modules.Posts;
+using ZeroX2C.Blog.API.Modules.Posts.Tags;
 using ZeroX2C.Blog.API.Modules.Users;
 
 namespace ZeroX2C.Blog.API.Persistence;
@@ -10,6 +11,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
     public DbSet<User> Users { get; set; }
     public DbSet<UserExternalLogin> UserExternalLogins { get; set; }
     public DbSet<Post> Posts { get; set; }
+    public DbSet<Tag> Tags { get; set; }
+    public DbSet<PostTag> PostTags { get; set; }
     public DbSet<Image> Images { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -47,6 +50,62 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasOne(login => login.User)
                 .WithMany(user => user.ExternalLogins)
                 .HasForeignKey(login => login.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Post>(entity =>
+        {
+            entity.ToTable("Posts");
+            entity.HasKey(post => post.Id);
+
+            entity.Property(post => post.Slug).HasMaxLength(PostSlug.MaxLength);
+            entity.Property(post => post.Title).HasMaxLength(256).IsRequired();
+            entity.Property(post => post.Subtitle).HasMaxLength(512);
+            entity.Property(post => post.Excerpt).HasMaxLength(1000);
+            entity.Property(post => post.Body).IsRequired();
+            entity.Property(post => post.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .HasDefaultValue(PostStatus.Draft)
+                .IsRequired();
+            entity.Property(post => post.CreatedAt).IsRequired();
+
+            entity.HasIndex(post => post.Slug).IsUnique();
+            entity.HasIndex(post => new { post.Status, post.PublishedAt });
+            entity.HasIndex(post => post.CreatedAt);
+        });
+
+        builder.Entity<Tag>(entity =>
+        {
+            entity.ToTable("Tags");
+            entity.HasKey(tag => tag.Id);
+
+            entity.Property(tag => tag.Name).HasMaxLength(TagName.MaxLength).IsRequired();
+            entity.Property(tag => tag.Description).HasMaxLength(512);
+            entity.Property(tag => tag.CreatedAt).IsRequired();
+
+            entity.HasIndex(tag => tag.Name).IsUnique();
+        });
+
+        builder.Entity<PostTag>(entity =>
+        {
+            entity.ToTable("PostTags");
+            entity.HasKey(postTag => postTag.Id);
+
+            entity.Property(postTag => postTag.CreatedAt).IsRequired();
+
+            entity.HasIndex(postTag => postTag.PostId);
+            entity.HasIndex(postTag => postTag.TagId);
+            entity.HasIndex(postTag => new { postTag.PostId, postTag.TagId }).IsUnique();
+
+            entity.HasOne(postTag => postTag.Post)
+                .WithMany(post => post.PostTags)
+                .HasForeignKey(postTag => postTag.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(postTag => postTag.Tag)
+                .WithMany(tag => tag.PostTags)
+                .HasForeignKey(postTag => postTag.TagId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -5,13 +5,6 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace ZeroX2C.Blog.API.Modules.Users.Auth;
 
-public interface IJwtTokenService
-{
-    Task<GeneratedToken> CreateAccessTokenAsync(User user, CancellationToken cancellationToken);
-}
-
-public sealed record GeneratedToken(string Value, DateTimeOffset ExpiresAt);
-
 public sealed class JwtTokenService(IOptions<JwtOptions> options) : IJwtTokenService
 {
     private readonly JwtOptions _options = options.Value;

@@ -1,243 +1,284 @@
 # Backend Architecture Blueprint
 
-Last updated: 2026-05-14
+Last updated: 2026-05-16
+
+This document describes the implemented architecture and the preferred way to extend it. It is written for future maintainers and agents who need to make changes without rediscovering the system shape from scratch.
 
 ## 1. Scope
 
-This backend powers a personal website with:
+The backend powers a personal website with:
 
-- Blog posts with drafts, publishing, tags, and SEO metadata.
-- Informational pages such as About, Projects, Uses, Contacts, and legal pages.
-- Internal image storage for post banners, post body images, and comment images.
-- Authenticated user comments.
-- User registration and login through local credentials and external providers.
-- Admin-only content management API.
-- Public read API for the frontend.
-- A structure that can be extended with new modules without rewriting existing features.
+- Public blog-post read APIs.
+- Admin APIs for posts, tags, and users.
+- Custom users, local credentials, Steam login, JWT authentication, and role-based authorization.
+- EF Core persistence with audited entity writes.
+- Startup migrations and technical-user bootstrap.
 
-Out of scope for the first version:
+Planned additions:
 
-- Multi-user publishing workflow.
-- Full-text search engine.
-- Payments, newsletters, or analytics pipelines.
+- Informational pages.
+- Comments.
+- Image/media upload and retrieval.
+- Google and GitHub external login.
+- Sitemap and health endpoints.
+- Test projects and integration tests.
+
+Out of scope for the first production iteration:
+
+- Multi-tenant publishing.
+- Complex editorial workflow.
+- Payments.
+- Analytics pipelines.
 - Non-image file storage.
 
-These can be added later as separate modules.
+## 2. Runtime And Persistence Stack
 
-## 2. Stack
+Current stack:
 
-Chosen runtime stack:
+- Target framework: `net10.0`.
+- ASP.NET Core controllers.
+- EF Core: 9.x.
+- MySQL provider: `Pomelo.EntityFrameworkCore.MySql` 9.x.
+- Database: MySQL.
+- Local database: Docker Compose with MySQL 8.4.
+- API docs: OpenAPI and Scalar.
+- Authentication: JWT bearer.
 
-- .NET 10
-- ASP.NET Core
-- Entity Framework Core 9.x
-- Pomelo.EntityFrameworkCore.MySql 9.x
-- MySqlConnector
-- MySQL
-- Docker Compose for local infrastructure
+Important dependency decision:
 
-EF Core + MySQL provider status checked on 2026-05-14:
+- The app targets .NET 10, but EF Core is pinned to 9.x because the selected Pomelo MySQL provider is an EF Core 9 provider.
+- Do not casually upgrade EF Core to 10 without checking MySQL provider compatibility and running migrations against a real MySQL instance.
 
-| Package | Latest stable checked | Relevant dependency result | Initial conclusion |
-| --- | ---: | --- | --- |
-| `Microsoft.EntityFrameworkCore` | `10.0.8` | Targets `net10.0` | EF Core 10 is available. |
-| `Pomelo.EntityFrameworkCore.MySql` | `9.0.0` | Depends on `Microsoft.EntityFrameworkCore.Relational [9.0.0, 9.0.999]` and `MySqlConnector 2.4.0` | Pomelo is currently an EF Core 9 provider, not EF Core 10. |
-| `MySql.EntityFrameworkCore` | `10.0.7` | Has `net10.0` group depending on `Microsoft.EntityFrameworkCore 10.0.7` and `MySql.Data 9.7.0` | Oracle provider has EF Core 10 support. Needs practical validation. |
-| `MySqlConnector` | `2.5.0` | Targets `net10.0` among other TFMs | Strong low-level MySQL connector; used by Pomelo. |
+## 3. Composition Root
 
-Important EF Core constraint: Microsoft documentation says third-party database providers must be compatible with the chosen EF Core version; older provider versions are not assumed compatible with newer EF Core runtimes.
+`Program.cs` owns:
 
-Decision:
+- DbContext registration.
+- Strongly typed options registration.
+- Application service registrations.
+- Authentication and authorization configuration.
+- Route options and slug constraint registration.
+- Controller and JSON enum configuration.
+- OpenAPI/Scalar registration.
+- Middleware ordering.
+- Migration and bootstrap execution.
 
-- Use `.NET 10` and `ASP.NET Core`.
-- Use `Pomelo.EntityFrameworkCore.MySql 9.x`.
-- Pin EF Core packages to `9.x`, even though the app itself targets `net10.0`.
-- Do not use EF Core 10 for v1, because the preferred Pomelo provider is currently an EF Core 9 provider.
+Startup order:
 
-Final v1 persistence stack:
+1. Build service collection.
+2. Configure JWT bearer authentication.
+3. Configure authorization policies.
+4. Build app.
+5. Map OpenAPI and Scalar.
+6. Use authentication.
+7. Run `AuthenticationContextMiddleware`.
+8. Use authorization.
+9. Map controllers.
+10. Apply EF Core migrations.
+11. Run `ApplicationBootstrapper`.
+12. Run the app.
 
-```text
-TargetFramework: net10.0
-EF Core: 9.x
-MySQL provider: Pomelo.EntityFrameworkCore.MySql 9.x
-Driver: MySqlConnector
-Database: MySQL
-```
+The authentication context middleware must stay after `UseAuthentication()` and before `UseAuthorization()`.
 
-Why this choice:
+## 4. Module Layout
 
-- The project is simple and does not require EF Core 10-specific features at the start.
-- Pomelo + MySqlConnector is a common MySQL EF Core stack.
-- Pinning EF Core to 9 is lower risk than choosing a provider only because it has a matching EF Core 10 major version.
-
-Open validation item:
-
-- Build a small spike for the chosen provider stack before the full project scaffold:
-  - Create database.
-  - Apply migrations.
-  - Insert/update/read entities.
-  - Verify `DateTimeOffset`, `Guid`, `decimal`, `json` or long text fields if used.
-  - Verify generated SQL and migration output are acceptable.
-
-## 3. System Context
-
-```mermaid
-flowchart LR
-    Visitor["Visitor"] --> Frontend["Website frontend"]
-    User["Authenticated user"] --> Frontend
-    Admin["Admin"] --> Frontend
-    ExternalAuth["Google / Steam / GitHub"] --> Api
-    Frontend --> Api["ASP.NET Core backend API"]
-    Api --> Db["MySQL"]
-    Api --> Logs["Logs and diagnostics"]
-```
-
-## 4. Backend Shape
-
-Use a modular monolith.
-
-Initial modules:
-
-- `Content`: shared publishing primitives such as slug, status, timestamps, SEO fields.
-- `Blog`: posts, tags, post-tag relations, publication state.
-- `Pages`: static informational pages managed through the same publication model.
-- `Media`: image blobs stored in MySQL and used by internal content features.
-- `Comments`: authenticated user comments on content.
-- `Identity`: users, local credentials, external logins, roles, blocking, and authorization.
-- `Admin`: protected write APIs and operational endpoints.
-
-The first codebase structure can stay simple:
+Current module layout:
 
 ```text
-src/
-  BlogBackend.Api/
-    Modules/
-      Blog/
-      Pages/
-      Media/
-      Comments/
-      Identity/
-      Shared/
-    Infrastructure/
-      Persistence/
-      Configuration/
+Modules/
+  Assets/
+    Images/               Early image/media placeholder.
+  Posts/
+    Admin/                Admin post/tag use cases and operation results.
+    Contracts/            Post DTOs.
+    Contracts/Tags/       Tag DTOs.
+    Controllers/          Public and admin post/tag controllers.
+    Tags/                 Tag entity, post-tag join entity, tag name rules.
+    Post.cs               Post entity.
+    PostQueryService.cs   Public post query service.
+  Shared/
+    EntityBase.cs         Common audited entity fields.
+  Users/
+    Admin/                Admin user use cases and operation results.
+    Auth/                 Auth services, JWT, context, bootstrap, providers.
+    Contracts/            Auth/admin user DTOs.
+    Controllers/          Auth and admin user controllers.
+    KnownUsers.cs         Fixed technical users.
+    User.cs               User entity.
 ```
 
-Rules:
+Extension rules:
 
-- Keep module-specific entities, request models, handlers, and endpoints close together.
-- Keep EF Core configuration explicit with `IEntityTypeConfiguration<T>`.
-- Avoid premature separate projects unless module boundaries become hard to maintain.
-- Keep public API and admin API separated by route groups and authorization policies.
+- Add new product areas as modules under `Modules/<Feature>/`.
+- Keep controllers thin and delegate to application services.
+- Keep EF entities in the owning module.
+- Keep reusable infrastructure outside modules only when it is genuinely cross-cutting.
+- Prefer direct, explicit code over generic frameworks until duplication is real.
 
-## 5. API Surface Draft
+## 5. API Surface
 
-Public API:
+Implemented public API:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
-- `GET /api/auth/external/{provider}/challenge`
-- `GET /api/auth/external/{provider}/callback`
-- `POST /api/auth/logout`
+- `GET /api/auth/steam`
+- `GET /api/auth/steam/callback`
 - `GET /api/me`
 - `GET /api/posts`
+- `GET /api/posts/{id:guid}`
 - `GET /api/posts/{slug}`
-- `GET /api/tags`
-- `GET /api/pages/{slug}`
-- `GET /api/posts/{slug}/comments`
-- `POST /api/posts/{slug}/comments`
-- `POST /api/media/images`
-- `GET /api/media/images/{id}`
-- `GET /api/sitemap`
 
-Admin API:
+Implemented admin API:
 
 - `GET /api/admin/users`
-- `PUT /api/admin/users/{id}/roles`
+- `PUT /api/admin/users/{id}/role`
 - `POST /api/admin/users/{id}/block`
 - `POST /api/admin/users/{id}/unblock`
 - `GET /api/admin/posts`
+- `GET /api/admin/posts/{id}`
 - `POST /api/admin/posts`
 - `PUT /api/admin/posts/{id}`
 - `POST /api/admin/posts/{id}/publish`
 - `POST /api/admin/posts/{id}/unpublish`
-- `GET /api/admin/pages`
-- `POST /api/admin/pages`
-- `PUT /api/admin/pages/{id}`
-- `GET /api/admin/comments`
-- `POST /api/admin/comments/{id}/hide`
-- `POST /api/admin/comments/{id}/restore`
-- `POST /api/admin/media/images`
+- `DELETE /api/admin/posts/{id}`
+- `GET /api/admin/tags`
+- `GET /api/admin/tags/{id}`
+- `POST /api/admin/tags`
+- `PUT /api/admin/tags/{id}`
+- `DELETE /api/admin/tags/{id}`
 
-## 6. Cross-Cutting Concerns
+Planned API:
 
-Configuration:
+- Google/GitHub auth challenge and callback endpoints.
+- Public tags endpoint.
+- Page public/admin endpoints.
+- Comment public/admin endpoints.
+- Image upload and retrieval endpoints.
+- Sitemap endpoint.
+- Health endpoints.
 
-- Use strongly typed options.
-- Keep secrets in environment variables or user secrets locally.
-- Keep appsettings defaults non-sensitive.
+## 6. Authentication Context
 
-Persistence:
+Authentication data flows like this:
 
-- Use EF Core migrations.
-- Never rely on `EnsureCreated` outside throwaway local experiments.
-- Add integration tests against real MySQL through Docker once persistence starts.
+1. ASP.NET Core validates JWT and builds `ClaimsPrincipal`.
+2. `AuthenticationContextMiddleware` converts the principal to `AuthenticationData`.
+3. `AuthenticationContextManager` stores the data in `AsyncLocal`.
+4. Services consume `IAuthenticationContext`.
 
-Validation:
+Rules:
 
-- Validate request DTOs at API boundary.
-- Keep domain invariants in application/domain code, not only in controllers.
+- Do not read `HttpContext.User` from application services.
+- Inject `IAuthenticationContext` into services that need actor information.
+- Use `MaybeUserId`/`MaybeRole` when anonymous access is expected.
+- Use `UserId`/`Role` only when the calling path guarantees authentication.
+- Use `IAuthenticationContextManager.AsSystem()` only for controlled code paths such as bootstrap.
 
-Observability:
+## 7. Technical Users And Bootstrap
 
-- Structured logging through ASP.NET Core logging abstractions.
-- Health endpoints for API and database.
+Known technical users:
 
-Security:
+- System: `00000000-0000-0000-0000-000000000001`, username `system`.
+- Superadmin: `00000000-0000-0000-0000-000000000002`, username `superadmin`.
 
-- Public read endpoints are anonymous.
-- Registration and local credential login support username/email/password.
-- External login supports Google, Steam, and GitHub through provider-specific adapters.
-- Admin write endpoints require the `Admin` or `SuperAdmin` role.
-- Superadmin capabilities require the `SuperAdmin` role.
-- Blocked users cannot create comments or perform user-level write actions.
-- A blocked user may still authenticate unless we explicitly decide to reject blocked logins.
-- Exactly one superadmin must exist per application instance.
+Bootstrap responsibilities:
 
-Superadmin bootstrap:
+- Ensure the system user exists.
+- Ensure the superadmin user exists.
+- Repair known technical user fields if they drift.
+- Remove system login paths by keeping system password hash empty and clearing external logins.
+- Fail startup if a non-technical user owns a known technical username or email.
+- Fail startup if a user other than the known system and known superadmin users has `UserRole.SuperAdmin`.
+- Set the superadmin password based on `SuperAdmin:UseDefaultPassword` only when creating the missing known superadmin.
+- Do not reset an existing known superadmin password during bootstrap.
 
-- Treat superadmin creation as an idempotent bootstrap step that runs after migrations, not as raw user creation inside EF migration code.
-- The bootstrap step creates required roles and the initial superadmin user from secure configuration.
-- The system must prevent adding a second `SuperAdmin` assignment through application services.
-- Startup checks should fail loudly if there are zero or more than one superadmin users.
+The system user exists because audited persistence requires an authenticated actor. Bootstrap enters a system authentication scope before writing technical users.
 
-## 7. Extension Points
+## 8. Persistence And Auditing
 
-New functionality should usually be added as a new module under `Modules/`.
+`BlogDbContext` configures the EF model centrally in `OnModelCreating`.
 
-Examples:
+Current DbSets:
 
-- `Projects`: project portfolio entries.
-- `Newsletter`: subscription forms and provider integration.
-- `CommentAntiSpam`: spam scoring and moderation automation.
-- `Search`: indexing and public search endpoint.
+- `Users`
+- `UserExternalLogins`
+- `Posts`
+- `Tags`
+- `PostTags`
+- `Images`
 
-A module can own:
+Auditing:
 
-- Its own entities.
-- Its own endpoint group.
-- Its own EF Core configuration.
-- Its own service/application logic.
+- `EntityBase` provides `CreatedBy`, `CreatedAt`, `UpdatedBy`, `UpdatedAt`, `IsDeleted`, `DeletedBy`, and `DeletedAt`.
+- `EntityAuditSaveChangesInterceptor` applies audit behavior.
+- Added entities get created metadata and reset update/delete metadata.
+- Modified entities get update metadata.
+- Deleted entities are converted to soft-deleted modified entities.
+- Save operations throw when there is no authenticated context.
 
-Shared code should be promoted to `Shared` only after at least two modules actually need it.
+Persistence rules:
 
-## 8. Source Notes
+- Use `Guid.CreateVersion7()` for generated entity IDs.
+- Technical-user IDs are fixed and are the only exception.
+- Use EF Core migrations for schema changes.
+- Do not manually edit migration files.
+- Query services must explicitly filter soft-deleted rows.
 
-Checked sources:
+## 9. Posts And Tags Design
 
-- Microsoft EF Core docs via Context7: provider packages must match the desired EF Core version.
-- NuGet flat container package metadata on 2026-05-14:
-  - `https://api.nuget.org/v3-flatcontainer/microsoft.entityframeworkcore/index.json`
-  - `https://api.nuget.org/v3-flatcontainer/pomelo.entityframeworkcore.mysql/index.json`
-  - `https://api.nuget.org/v3-flatcontainer/mysql.entityframeworkcore/index.json`
-  - `https://api.nuget.org/v3-flatcontainer/mysqlconnector/index.json`
+Posts:
+
+- `PostStatus` controls draft/published/archive-like state. Current public behavior uses only published posts.
+- Public queries require `Status == Published`, `PublishedAt != null`, and `!IsDeleted`.
+- Admin queries exclude deleted posts but include draft/published states.
+- `PublishedBy` stores the authenticated actor id at publish time.
+- Slugs are optional for posts.
+
+Tags:
+
+- Tags use `Name` as the stable kebab-case identifier.
+- Tag names are unique, lowercase kebab-case, and at most 20 characters.
+- Tags do not have a separate slug field.
+- Deleting a tag soft-deletes active `PostTag` rows.
+
+Slug rules:
+
+- Lowercase ASCII letters, digits, and hyphen-separated segments.
+- Post slug max length: 160.
+- Tag name max length: 20.
+
+## 10. Security Notes
+
+- Keep secrets outside committed config for non-local environments.
+- JWT signing key must contain at least 32 UTF-8 bytes.
+- The checked-in appsettings file is a development baseline.
+- Admin write endpoints require the `Admin` policy.
+- Role mutation requires the `SuperAdmin` policy.
+- System user must not become externally authenticatable.
+- Logging a generated superadmin password is intentional for bootstrap but should be treated as sensitive operational output.
+
+## 11. Extension Guidance
+
+When adding a new feature:
+
+1. Identify the owning module or create a new module.
+2. Add contracts under `Contracts/`.
+3. Add application service interfaces and implementations in the module.
+4. Keep controllers as adapters.
+5. Add entities to the module and wire them in `BlogDbContext`.
+6. Generate migrations through `dotnet ef`.
+7. Update `README.md`, `AGENTS.md`, and architecture docs if behavior or extension rules change.
+
+When adding an external provider:
+
+- Keep provider-specific protocol code behind an interface.
+- Normalize provider identity into `UserExternalLogin`.
+- Do not duplicate provider accounts across users.
+- Keep local-password and external-login flows distinct.
+
+When adding comments or media:
+
+- Reuse `EntityBase`.
+- Decide the owning module boundary first.
+- Enforce blocked-user write restrictions in services or authorization requirements.
+- Keep storage decisions behind module-owned abstractions.

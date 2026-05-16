@@ -82,18 +82,38 @@ namespace ZeroX2C.Blog.API.Persistence.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Excerpt")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("PublishedBy")
+                        .HasColumnType("char(36)");
+
                     b.Property<string>("Slug")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasDefaultValue("Draft");
 
                     b.Property<string>("Subtitle")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -103,7 +123,103 @@ namespace ZeroX2C.Blog.API.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Posts");
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "PublishedAt");
+
+                    b.ToTable("Posts", (string)null);
+                });
+
+            modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Posts.Tags.PostTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PostId");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("PostId", "TagId")
+                        .IsUnique();
+
+                    b.ToTable("PostTags", (string)null);
+                });
+
+            modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Posts.Tags.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Tags", (string)null);
                 });
 
             modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Users.User", b =>
@@ -210,6 +326,25 @@ namespace ZeroX2C.Blog.API.Persistence.Migrations
                     b.ToTable("UserExternalLogins", (string)null);
                 });
 
+            modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Posts.Tags.PostTag", b =>
+                {
+                    b.HasOne("ZeroX2C.Blog.API.Modules.Posts.Post", "Post")
+                        .WithMany("PostTags")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ZeroX2C.Blog.API.Modules.Posts.Tags.Tag", "Tag")
+                        .WithMany("PostTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Tag");
+                });
+
             modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Users.UserExternalLogin", b =>
                 {
                     b.HasOne("ZeroX2C.Blog.API.Modules.Users.User", "User")
@@ -219,6 +354,16 @@ namespace ZeroX2C.Blog.API.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Posts.Post", b =>
+                {
+                    b.Navigation("PostTags");
+                });
+
+            modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Posts.Tags.Tag", b =>
+                {
+                    b.Navigation("PostTags");
                 });
 
             modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Users.User", b =>

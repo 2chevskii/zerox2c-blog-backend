@@ -1,217 +1,194 @@
 # Backend Roadmap
 
-Last updated: 2026-05-14
+Last updated: 2026-05-16
+
+This roadmap tracks implementation progress at project scale. It is intentionally practical: use it to choose the next coherent change set, avoid duplicating completed work, and keep unrelated work out of the same commit.
+
+## Status Legend
+
+- Done: implemented enough for current scope.
+- Partial: meaningful code exists, but important behavior or verification remains.
+- Planned: documented but not implemented.
 
 ## Phase 0. Architecture Baseline
 
-Goal: agree on the first implementation direction before generating application code.
+Status: Done.
 
-Tasks:
+Completed:
 
-- Confirm documentation format: `blueprint.md`, `roadmap.md`, `data-schema.md`.
-- Confirm runtime target: `.NET 10` and ASP.NET Core.
-- Confirm persistence stack: EF Core 9 + Pomelo on `net10.0`.
-- Capture functional requirements for users, roles, media, and comments.
-- Run a provider spike before final project scaffold.
+- Runtime target selected: .NET 10.
+- Persistence stack selected: EF Core 9.x with Pomelo MySQL provider.
+- Architecture docs created under `docs/architecture`.
+- Modular monolith direction selected.
+- Custom identity model selected instead of ASP.NET Core Identity.
 
-Done when:
+Follow-up:
 
-- Provider choice is written down in `blueprint.md`.
-- Functional requirements v0 are accepted.
-- Data model v0 is accepted.
-- Initial API surface is accepted.
+- Keep docs current when code changes behavior or module boundaries.
 
-## Phase 1. Provider Spike
+## Phase 1. Project Scaffold
 
-Goal: validate the chosen EF Core + MySQL stack before committing the codebase shape.
+Status: Done.
 
-- Target framework: `net10.0`
-- EF Core packages: `9.x`
-- Provider: `Pomelo.EntityFrameworkCore.MySql 9.x`
+Completed:
 
-Spike checklist:
+- Solution and API project exist.
+- Central package management exists.
+- Docker Compose includes local MySQL.
+- `Program.cs` configures controllers, OpenAPI/Scalar, authentication, authorization, EF Core, and bootstrap.
+- `BlogDbContext` and migrations exist.
+- Startup applies migrations.
 
-- Create a minimal ASP.NET Core project.
-- Add one `BlogPost` entity and one `Tag` entity.
-- Generate an initial migration.
-- Apply migration to MySQL in Docker.
-- Insert and read sample data.
-- Check generated schema for strings, timestamps, GUIDs or ULIDs, indexes, and many-to-many relations.
-- Verify rollback or migration removal workflow.
+Still needed:
 
-Pass criteria:
+- Health checks.
+- Standardized error handling beyond controller-level status mapping.
+- Request logging policy.
 
-- Pomelo works cleanly with EF Core 9 on `net10.0`.
-- Migrations generate predictable MySQL schema.
-- Basic CRUD works against real MySQL.
-- No provider-level blocker appears for the expected content model.
+## Phase 2. Persistence And Auditing
 
-Fallback rule:
+Status: Partial.
 
-- If Pomelo + EF Core 9 has a serious blocker, revisit the provider decision before scaffolding the full project.
-- Avoid EF Core 8 unless EF Core 9 has a provider-level blocker that cannot be worked around cleanly.
+Completed:
 
-## Phase 2. Project Scaffold
+- `EntityBase` defines common audit and soft-delete fields.
+- EF Core save interceptor applies created/updated/deleted audit stamps.
+- Deletes are converted to soft deletes for `EntityBase` entities.
+- `TimeProvider.System` is registered for audit timestamps.
+- Save operations require an authenticated application context.
 
-Goal: create the actual backend skeleton.
+Still needed:
 
-Tasks:
+- Tests for audit behavior.
+- Clear query conventions or helpers for consistently excluding soft-deleted rows.
+- Decision on `DateTime` vs `DateTimeOffset` consistency.
 
-- Create solution and API project.
-- Add Docker Compose with MySQL.
-- Add app configuration and strongly typed options.
-- Add EF Core DbContext and migration setup.
-- Add health checks.
-- Add basic error handling and request logging.
+## Phase 3. Identity, Auth, Roles, And Technical Users
 
-Done when:
+Status: Partial.
 
-- API starts locally.
-- MySQL starts locally.
-- First migration applies successfully.
-- Health endpoint confirms API and database status.
+Completed:
 
-## Phase 3. Identity And Roles
+- `User` and `UserExternalLogin` entities exist.
+- Local registration exists.
+- Local login by username/email exists.
+- Steam login exists.
+- JWT token creation exists.
+- Authentication context middleware exists.
+- Roles exist: `User`, `Admin`, `SuperAdmin`.
+- Admin and superadmin authorization policies exist.
+- Technical users are defined in `KnownUsers`.
+- Startup bootstrap creates/repairs system and superadmin users.
+- Superadmin password behavior is controlled by `SuperAdmin:UseDefaultPassword`.
+- Admin user list, block, unblock, and role mutation endpoints exist.
 
-Goal: implement users, authentication, roles, and blocking.
+Still needed:
 
-Tasks:
+- Google external login.
+- GitHub external login.
+- Consistent decision on whether blocked users may log in.
+- Rate limiting for auth-sensitive endpoints.
+- Tests for auth, bootstrap, role rules, and blocked-user behavior.
+- Tests for the invariant that only `KnownUsers.System` and `KnownUsers.SuperAdmin` can hold `SuperAdmin`.
 
-- Add custom user and external-login tables.
-- Store role as a `User` enum property.
-- Add local registration and login with username/email/password.
-- Add external login flow abstraction for Google, Steam, and GitHub.
-- Add `User`, `Admin`, and `SuperAdmin` roles.
-- Add idempotent bootstrap for roles and the initial superadmin.
-- Add startup validation for exactly one superadmin.
-- Add user blocking fields and write-action guards.
+## Phase 4. Posts And Tags
 
-Done when:
+Status: Partial.
 
-- Users can register and log in locally.
-- External provider flow shape is implemented or stubbed behind provider adapters.
-- Admin routes can require `Admin` or `SuperAdmin`.
-- Superadmin bootstrap is deterministic and does not live inside raw EF migration code.
-- Blocked users cannot create comments or upload comment images.
+Completed:
 
-## Phase 4. Content Core
+- `Post`, `Tag`, and `PostTag` entities exist.
+- Post statuses exist.
+- Slug helpers exist for posts, and tag name rules exist for tags.
+- Public published-post list and details endpoints exist.
+- Admin post list/get/create/update/publish/unpublish/delete endpoints exist.
+- Admin tag list/get/create/update/delete endpoints exist.
+- Post/tag assignment is implemented.
+- Public queries hide draft and soft-deleted posts.
+- Admin queries hide soft-deleted posts.
 
-Goal: implement reusable publishing primitives.
+Still needed:
 
-Tasks:
-
-- Add content status model: draft, published, archived.
-- Add slug handling.
-- Add SEO fields.
-- Add created/updated/published timestamps.
-- Add common pagination response model.
-
-Done when:
-
-- Blog and Pages can reuse the same content conventions without inheritance-heavy design.
+- Public tag list/detail endpoints if frontend needs them.
+- Archive behavior beyond the enum value.
+- SEO fields if still required.
+- Banner/cover image relationship enforcement after media is implemented.
+- Tests for visibility, slug uniqueness, tag assignment, publish/unpublish, and soft delete.
 
 ## Phase 5. Media
 
-Goal: support internal image storage through MySQL blobs.
+Status: Planned.
 
-Tasks:
+Completed:
 
-- Add media asset table with blob payload.
-- Restrict uploads to images.
-- Add content type and size validation.
-- Add image retrieval endpoint.
-- Keep blob persistence hidden behind the `Media` module boundary.
+- Placeholder `Image` entity exists.
 
-Done when:
+Still needed:
 
-- Blog posts can reference banner images.
-- Blog post bodies and comments can reference internal images.
-- Non-image uploads are rejected.
+- Decide storage shape for v1: MySQL blob vs immediate object storage abstraction.
+- Add image metadata fields.
+- Add upload endpoint.
+- Add retrieval endpoint.
+- Validate content type and size.
+- Add post banner/body-image integration.
+- Add comment image integration after comments exist.
 
-## Phase 6. Blog
+## Phase 6. Pages
 
-Goal: publish and read blog posts.
+Status: Planned.
 
-Tasks:
+Still needed:
 
-- Add posts.
-- Add tags.
-- Add post-tag relation.
-- Add banner image reference.
-- Add internal image references in post body format.
-- Add public post list and post details endpoints.
-- Add admin create/update/publish/unpublish endpoints.
-
-Done when:
-
-- Public API only returns published posts.
-- Admin API can manage drafts and published posts.
-- Basic integration tests cover persistence and visibility rules.
-
-## Phase 7. Pages
-
-Goal: manage informational pages.
-
-Tasks:
-
-- Add pages with slug and content body.
+- Add page entity.
+- Add publication state and slug handling.
 - Add public page-by-slug endpoint.
 - Add admin page management endpoints.
+- Decide whether pages reuse post DTO/service patterns or get a separate module shape.
 
-Done when:
+## Phase 7. Comments
 
-- Frontend can render named pages from backend content.
+Status: Planned.
 
-## Phase 8. Comments
+Still needed:
 
-Goal: allow authenticated, non-blocked users to comment on posts.
-
-Tasks:
-
-- Add comments table.
-- Add optional comment-image relation.
+- Decide flat vs threaded comments.
+- Add comment entity.
 - Add public comments endpoint for posts.
 - Add authenticated create-comment endpoint.
-- Add authorization check that rejects blocked users.
+- Reject blocked users from comment creation.
 - Add admin hide/restore endpoints.
+- Add optional image attachment support after media exists.
 
-Done when:
+## Phase 8. Production Readiness
 
-- Anonymous users cannot create comments.
-- Blocked users cannot create comments.
-- Public users see only visible comments.
-- Admins can hide and restore comments.
+Status: Planned.
 
-## Phase 9. Admin
+Still needed:
 
-Goal: complete admin-facing moderation and management endpoints.
-
-Tasks:
-
-- Add user list endpoint.
-- Add role management endpoint.
-- Add block/unblock endpoints.
-- Add moderation views for comments and media.
-- Add rate limiting for auth-sensitive endpoints.
-
-Done when:
-
-- Public endpoints remain anonymous.
-- Admin endpoints reject unauthenticated requests.
-- Superadmin-only operations reject normal admins.
-
-## Phase 10. Production Readiness
-
-Goal: prepare deployment.
-
-Tasks:
-
+- Add tests.
+- Add CI build/test workflow.
 - Add production configuration notes.
-- Add database migration command/workflow.
-- Add backup notes for MySQL and media.
-- Add structured logging configuration.
-- Add basic CI build and test pipeline.
+- Add deployment/migration workflow.
+- Add MySQL backup and restore notes.
+- Add structured logging conventions.
+- Add health checks.
+- Add observability guidance.
 
-Done when:
+## Recommended Next Work
 
-- The service can be deployed and restored with documented steps.
+Near-term, highest leverage:
+
+1. Add tests around authentication/bootstrap/auditing because those are cross-cutting and easy to regress.
+2. Harden admin user role rules around known superadmin invariants.
+3. Add public tag endpoints if the frontend needs tag navigation.
+4. Implement health checks and basic production readiness docs.
+5. Start the media module only after deciding whether v1 truly stores blobs in MySQL.
+
+## Work-Splitting Guidance
+
+Keep changes focused:
+
+- Do not mix auth hardening with post/tag feature work.
+- Do not mix schema migrations with unrelated refactors.
+- Do not add a new module and production deployment work in the same commit.
+- Update docs in the same change set when behavior or architecture changes.

@@ -6,11 +6,16 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 using ZeroX2C.Blog.API.CrossCutting.Api;
-using ZeroX2C.Blog.API.Modules.Users.Admin;
+using ZeroX2C.Blog.API.CrossCutting.Bootstrap;
+using ZeroX2C.Blog.API.Modules.Posts;
+using ZeroX2C.Blog.API.Modules.Posts.Admin;
 using ZeroX2C.Blog.API.Modules.Users;
+using ZeroX2C.Blog.API.Modules.Users.Admin;
 using ZeroX2C.Blog.API.Modules.Users.Auth;
 using ZeroX2C.Blog.API.Persistence;
+using ZeroX2C.Blog.API.Persistence.Auditing;
 using ZeroX2C.Blog.API.Utility.Configuration;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -21,6 +26,8 @@ builder.Services.AddDbContext<BlogDbContext>(
     {
         var configuration = serviceProvider.GetRequiredService<IConfiguration>();
         var connectionString = configuration.GetRequiredConnectionString("MySql");
+        var auditInterceptor =
+            serviceProvider.GetRequiredService<EntityAuditSaveChangesInterceptor>();
         options.UseMySql(
             connectionString,
             ServerVersion.AutoDetect(connectionString),
@@ -29,21 +36,35 @@ builder.Services.AddDbContext<BlogDbContext>(
                 mysql.MigrationsAssembly(Assembly.GetExecutingAssembly());
             }
         );
+        options.AddInterceptors(auditInterceptor);
     }
 );
 
-builder.Services.Configure<JwtOptions>(
-    builder.Configuration.GetSection(JwtOptions.SectionName)
-);
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<SuperAdminOptions>(
     builder.Configuration.GetSection(SuperAdminOptions.SectionName)
 );
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<IAuthenticationContextManager, AuthenticationContextManager>();
+builder.Services.AddSingleton<IAuthenticationContext>(serviceProvider =>
+    serviceProvider.GetRequiredService<IAuthenticationContextManager>().Current
+);
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
-builder.Services.AddScoped<AuthBootstrapper>();
+builder.Services.AddScoped<IPostQueryService, PostQueryService>();
+builder.Services.AddScoped<IAdminPostService, AdminPostService>();
+builder.Services.AddScoped<IAdminTagService, AdminTagService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IAuditEntityChangeHandler, AddedEntityAuditHandler>();
+builder.Services.AddScoped<IAuditEntityChangeHandler, ModifiedEntityAuditHandler>();
+builder.Services.AddScoped<IAuditEntityChangeHandler, DeletedEntityAuditHandler>();
+builder.Services.AddScoped<EntityAuditSaveChangesInterceptor>();
+builder.Services.AddScoped<ApplicationBootstrapper>();
+builder.Services.AddScoped<IBootstrapHandler, SuperAdminBootstrapHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, NotBlockedRequirementHandler>();
+builder.Services.AddHttpClient<ISteamOpenIdClient, SteamOpenIdClient>();
 
 builder
     .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -94,10 +115,12 @@ builder.Services.AddAuthorization(options =>
     );
 });
 
-builder.Services.AddControllers().AddJsonOptions(options =>
-{
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
+builder
+    .Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.Configure<RouteOptions>(route =>
 {
     route.LowercaseQueryStrings = true;
@@ -105,10 +128,18 @@ builder.Services.Configure<RouteOptions>(route =>
     route.ConstraintMap["slug"] = typeof(SlugRouteConstraint);
 });
 
+builder.Services.AddOpenApi(openapi =>
+{
+    openapi.AddScalarTransformers();
+});
+
 var app = builder.Build();
 
 app.UseDeveloperExceptionPage();
+app.MapOpenApi();
+app.MapScalarApiReference();
 app.UseAuthentication();
+app.UseMiddleware<AuthenticationContextMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
@@ -117,8 +148,9 @@ await using (var scope = app.Services.CreateAsyncScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
     await dbContext.Database.MigrateAsync();
 
-    var authBootstrapper = scope.ServiceProvider.GetRequiredService<AuthBootstrapper>();
-    await authBootstrapper.BootstrapAsync();
+    var applicationBootstrapper =
+        scope.ServiceProvider.GetRequiredService<ApplicationBootstrapper>();
+    await applicationBootstrapper.BootstrapAsync();
 }
 
 await app.RunAsync();

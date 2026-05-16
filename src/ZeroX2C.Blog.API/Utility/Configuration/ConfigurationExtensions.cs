@@ -9,6 +9,3 @@ public static class ConfigurationExtensions
         configuration.GetConnectionString(name)
         ?? throw new MissingRequiredConnectionStringException(name);
 }
-
-public class MissingRequiredConnectionStringException(string name)
-    : Exception($"Missing required connection string '{name}'");

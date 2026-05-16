@@ -1,8 +1,39 @@
 # Functional Requirements
 
-Last updated: 2026-05-14
+Last updated: 2026-05-16
 
-## 1. Identity And Authentication
+This document describes intended product behavior and explicitly marks what is already implemented. Use it when deciding whether a code change is preserving behavior, completing planned behavior, or intentionally changing product scope.
+
+## 1. Current Implementation Snapshot
+
+Implemented:
+
+- Local user registration with username, email, and password.
+- Local login with username or email plus password.
+- Steam OpenID login flow.
+- JWT access tokens.
+- Current-user endpoint.
+- User roles: `User`, `Admin`, `SuperAdmin`.
+- Admin user listing, role mutation, blocking, and unblocking.
+- Known technical users: system and superadmin.
+- Public post listing and post details by id or slug.
+- Admin post CRUD-like management: list, get, create, update, publish, unpublish, delete.
+- Admin tag management: list, get, create, update, delete.
+- Soft delete and audit stamping for entities derived from `EntityBase`.
+- Startup migrations and application bootstrap.
+
+Planned but not implemented:
+
+- Google and GitHub external login.
+- Comments.
+- Informational pages.
+- Image upload/storage endpoints.
+- Public tag listing endpoint.
+- Sitemap endpoint.
+- Health endpoints.
+- Integration tests.
+
+## 2. Identity And Authentication
 
 Users can register and sign in.
 
@@ -13,22 +44,34 @@ Local authentication:
 - A user can log in with email and password.
 - Username must be unique.
 - Email must be unique.
+- Registered local users start with `UserRole.User`.
+- Registered local users currently do not require email confirmation before login.
 
 External authentication:
 
-- A user can authenticate through Google.
-- A user can authenticate through Steam.
-- A user can authenticate through GitHub.
-- External logins are linked to a local user account.
+- Steam login is implemented.
+- Google login is planned.
+- GitHub login is planned.
+- External logins are linked to local user records through `UserExternalLogin`.
 - A provider account cannot be linked to multiple local users.
+- Steam-created local users receive synthetic usernames and emails based on the Steam id.
+- External-login users have an empty password hash and should authenticate through their external provider, not through local password login.
 
-Implementation note:
+Current blocked-user behavior:
+
+- Local blocked users can still log in.
+- Existing Steam external-login users are rejected if blocked.
+- Write actions should guard blocked users where the feature requires it.
+- Whether all blocked users should be rejected at login remains a product decision.
+
+Implementation constraints:
 
 - Authentication and authorization use custom application entities and services, not ASP.NET Core Identity.
-- Google has first-party ASP.NET Core authentication support.
-- GitHub and Steam should be treated as provider adapters behind the same external login flow; exact packages can be selected during implementation.
+- JWT claims are created by `JwtTokenService`.
+- Request/auth principal data is normalized into `AuthenticationData`.
+- `AuthenticationContextMiddleware` populates the application authentication context for downstream services.
 
-## 2. Roles And Authorization
+## 3. Roles And Authorization
 
 Supported roles:
 
@@ -40,110 +83,165 @@ Rules:
 
 - Every registered user has normal user capabilities.
 - `Admin` grants access to content moderation and content management endpoints.
-- `SuperAdmin` grants all admin capabilities and application-level administrative control.
+- `SuperAdmin` grants role-management capability and should retain all admin capabilities.
 - Role is a single enum-like property on `User`, not a separate role table.
 - `SuperAdmin` is still a user role value, not a separate user type.
-- There must be exactly one superadmin user per application instance.
+- Exactly the known system user and known superadmin user should hold the `SuperAdmin` role.
+- Admin routes can require `Admin` or `SuperAdmin`.
+- Role mutation routes must require `SuperAdmin`.
 
-Superadmin bootstrap:
+## 4. Technical Users And Bootstrap
 
-- Required roles are created during application bootstrap.
-- The initial superadmin is created during application bootstrap after migrations are applied.
-- Superadmin bootstrap must be idempotent.
-- Bootstrap reads initial superadmin data from secure configuration.
-- Application services must reject assigning `SuperAdmin` to a second user.
-- Startup validation must fail if the database contains zero or more than one superadmin.
+Technical users are defined in code by `KnownUsers`.
+
+System:
+
+- Id: `00000000-0000-0000-0000-000000000001`
+- Username: `system`
+- Email: `system@internal.local`
+- Purpose: code-only internal actor for audited work.
+- Role: `SuperAdmin`.
+- Login methods: none.
+- Usage path: only through `IAuthenticationContextManager.AsSystem()`.
+
+Superadmin:
+
+- Id: `00000000-0000-0000-0000-000000000002`
+- Username: `superadmin`
+- Email: `superadmin@internal.local`
+- Purpose: fixed administrative account.
+- Role: `SuperAdmin`.
+
+Bootstrap rules:
+
+- Migrations run first; application bootstrap runs after migrations.
+- Bootstrap creates or repairs the system user and superadmin user.
+- Technical-user bootstrap must be idempotent.
+- Bootstrap must fail if a non-technical user owns a known technical username or email.
+- Bootstrap must fail if any user other than `KnownUsers.System` and `KnownUsers.SuperAdmin` has `UserRole.SuperAdmin`.
+- The system user must have no password hash and no external logins.
+- Superadmin bootstrap uses the fixed superadmin identity.
+- `SuperAdmin:UseDefaultPassword` controls initial password behavior when the known superadmin is missing.
+- If `UseDefaultPassword` is enabled, use the default password defined in `KnownUsers`.
+- If `UseDefaultPassword` is disabled, generate a random password and log it during startup.
+- Bootstrap must not reset the known superadmin password after the user already exists.
 
 Important correction:
 
-- Creating the superadmin directly inside EF migration code is not ideal. Migrations should describe schema and deterministic data changes; user bootstrap depends on secrets and environment-specific credentials. The safer design is: run migrations, then run an idempotent bootstrap step.
+- Technical users must not be created directly inside EF migration code. Migrations describe schema and deterministic data changes. Technical-user setup belongs in idempotent bootstrap after migrations.
 
-## 3. User Blocking
-
-Admins can block and unblock users.
-
-Rules:
-
-- A blocked user cannot create comments.
-- A blocked user cannot upload comment images.
-- A blocked user cannot perform user-level write actions.
-- Blocking does not automatically delete existing comments.
-- Whether blocked users can still log in remains an explicit product decision.
-
-Initial default:
-
-- Blocked users may still log in, but write actions check `IsBlocked`.
-
-## 4. Blog
-
-Public users can:
-
-- View published blog posts.
-- View blog post details by slug.
-- View post tags.
-- View visible comments on published posts.
+## 5. User Administration
 
 Admins can:
 
-- Create, update, publish, unpublish, and archive posts.
-- Assign tags.
-- Set a post banner image.
-- Embed internal images in the post body.
+- List users.
+- Block users.
+- Unblock users.
+
+Superadmins can:
+
+- Change a user's role.
+- Change the known superadmin user's password.
 
 Rules:
 
-- Public endpoints only expose published posts.
-- Draft and archived posts are visible only through admin endpoints.
+- A normal admin must not be able to assign or remove superadmin privileges.
+- Application services must reject assigning `SuperAdmin` to ordinary users.
+- Known technical users cannot be modified through admin user operations.
+- The known superadmin password is the only known-user field that can be modified through admin user operations.
+- Superadmin users cannot be blocked through admin user operations.
+- Blocking records `IsBlocked`, `BlockedAt`, and `BlockedReason`.
+- Unblocking clears those fields.
 
-## 5. Informational Pages
+## 6. Blog Posts
 
 Public users can:
 
-- View published pages by slug.
+- View published post list.
+- Search published posts by title, subtitle, or excerpt.
+- View published post details by id.
+- View published post details by slug.
 
 Admins can:
 
-- Create, update, publish, unpublish, and archive pages.
+- List non-deleted posts.
+- Filter posts by status.
+- Search posts by title, subtitle, excerpt, or slug.
+- Create draft posts.
+- Update post content and tag assignments.
+- Publish posts.
+- Unpublish posts.
+- Soft-delete posts.
 
 Rules:
 
-- Public endpoints only expose published pages.
-- Pages use the same basic publication conventions as blog posts.
+- Public endpoints expose only non-deleted posts with `Published` status and non-null `PublishedAt`.
+- Admin endpoints expose drafts and published posts but exclude soft-deleted posts.
+- New posts start as drafts.
+- Publishing sets `Status`, `PublishedBy`, and `PublishedAt`.
+- Unpublishing returns the post to draft state and clears publish metadata.
+- Post slugs are generated from the title when omitted on create or update.
+- Generated post slugs must be unique; numeric suffixes are appended when needed.
+- Explicitly provided post slugs must be unique and match the slug pattern, otherwise the request fails validation.
+- Post tag assignments must refer to active, non-deleted tags.
 
-## 6. Media
+## 7. Tags
 
-The backend stores media files as blobs in MySQL for v1.
+Admins can:
 
-Supported media:
-
-- Images only.
-
-Allowed usage:
-
-- Blog post banners.
-- Images inside blog post bodies.
-- Images inside comments.
-
-Rules:
-
-- Media is for internal site content only.
-- Non-image files are not supported in v1.
-- The API must validate content type and size.
-- The `Media` module must hide the physical storage decision from other modules so DB blobs can later be replaced with object storage.
-
-## 7. Comments
-
-Authenticated users can comment on blog posts.
+- List non-deleted tags.
+- Search tags by name or description.
+- Create tags.
+- Update tags.
+- Soft-delete tags.
 
 Rules:
 
-- Anonymous users cannot create comments.
-- Blocked users cannot create comments.
-- Comments belong to an author user.
-- Comments belong to a blog post.
+- Tags require a unique name.
+- Tag names must be lowercase kebab-case and no longer than 20 characters.
+- Tags do not have a separate slug field.
+- Deleting a tag soft-deletes active post-tag assignments for that tag.
+
+Public tag endpoints are planned but not currently implemented.
+
+## 8. Informational Pages
+
+Planned behavior:
+
+- Public users can view published pages by slug.
+- Admins can create, update, publish, unpublish, archive, and delete pages.
+- Pages should use the same publication conventions as blog posts where possible.
+
+Current state:
+
+- No page module or page endpoints are implemented.
+
+## 9. Media
+
+Planned behavior:
+
+- The backend stores image media for internal site content.
+- Allowed use cases include blog post banners, post body images, and comment images.
+- Non-image file storage is out of scope for v1.
+- Media storage should stay behind a module boundary so MySQL blob storage can later move to object storage.
+
+Current state:
+
+- `Modules/Assets/Images/Image.cs` exists as an early placeholder entity.
+- No image upload, retrieval, validation, or storage endpoints are implemented.
+
+## 10. Comments
+
+Planned behavior:
+
+- Authenticated users can comment on published blog posts.
+- Anonymous users cannot comment.
+- Blocked users cannot comment.
+- Comments belong to an author user and a blog post.
 - Public endpoints return only visible comments.
 - Admins can hide or restore comments.
 
-Open decision:
+Current state:
 
-- Decide whether v1 comments are flat or threaded.
+- No comments module or comment endpoints are implemented.
+- Comment threading vs flat comments remains undecided.

@@ -1,27 +1,148 @@
-# .NET Project Template
+# 0x2c.dev Blog Backend
 
-This repository is a minimal starting point for future .NET projects.
+Backend API for the 0x2c.dev personal website. The application is a modular ASP.NET Core backend with custom authentication, admin content-management endpoints, public blog-post queries, EF Core persistence, and MySQL as the primary database.
 
-Its purpose is to provide a clean baseline with shared solution-level configuration already in place, so new projects can start from a consistent structure instead of rebuilding the same setup each time.
+This repository is no longer a generic .NET template. Treat it as an application codebase.
 
-## What This Template Includes
+## Current Stack
 
-- `Solution.slnx` as the solution entry point
-- `src/Project/Project.csproj` as the initial SDK-style project
-- `Directory.Build.props` for shared MSBuild settings
-- `Directory.Packages.props` for centralized NuGet package version management
-- `global.json` to pin the .NET SDK version
-- Standard repository files such as `.editorconfig`, `.gitignore`, and `LICENSE`
+- .NET 10 target framework.
+- ASP.NET Core controllers.
+- EF Core 9.x with `Pomelo.EntityFrameworkCore.MySql`.
+- MySQL 8.4 for local development through Docker Compose.
+- JWT bearer authentication.
+- Scalar/OpenAPI for local API exploration.
+- Central package management through `Directory.Packages.props`.
 
-## Intended Use
+## Repository Layout
 
-Use this template when creating a new .NET repository and you want:
+```text
+src/ZeroX2C.Blog.API/
+  CrossCutting/
+    Api/                  Route constraints and API infrastructure.
+    Bootstrap/            Startup bootstrap pipeline.
+  Modules/
+    Assets/               Early media/image domain placeholder.
+    Posts/                Blog posts, tags, public queries, admin use cases.
+    Shared/               Generic shared domain primitives.
+    Users/                Users, authentication, authorization, admin user operations.
+  Persistence/
+    Auditing/             EF Core save interceptor and audit handlers.
+    Migrations/           EF Core migrations.
+    BlogDbContext.cs      EF Core model configuration.
+  Utility/
+    Configuration/        Small configuration helpers.
+  Program.cs              Composition root, middleware, auth, migrations, bootstrap.
+```
 
-- a small, predictable starting structure
-- centralized build and package configuration
-- nullable reference types and implicit usings enabled by default
-- a repository that can be expanded without carrying unnecessary boilerplate
+## Implemented Product Surface
 
-## Current Baseline
+Public endpoints:
 
-The template is intentionally minimal. It does not assume any specific application type such as web API, worker service, library, or desktop app. The expectation is that you copy or generate from this repository, then rename `Project`, add the required projects, and shape the solution around the new project's needs.
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/steam`
+- `GET /api/auth/steam/callback`
+- `GET /api/me`
+- `GET /api/posts`
+- `GET /api/posts/{id:guid}`
+- `GET /api/posts/{slug}`
+
+Admin endpoints:
+
+- `GET /api/admin/users`
+- `PUT /api/admin/users/{id}/role`
+- `PUT /api/admin/users/{id}/password`
+- `POST /api/admin/users/{id}/block`
+- `POST /api/admin/users/{id}/unblock`
+- `GET /api/admin/posts`
+- `GET /api/admin/posts/{id}`
+- `POST /api/admin/posts`
+- `PUT /api/admin/posts/{id}`
+- `POST /api/admin/posts/{id}/publish`
+- `POST /api/admin/posts/{id}/unpublish`
+- `DELETE /api/admin/posts/{id}`
+- `GET /api/admin/tags`
+- `GET /api/admin/tags/{id}`
+- `POST /api/admin/tags`
+- `PUT /api/admin/tags/{id}`
+- `DELETE /api/admin/tags/{id}`
+
+Planned but not currently implemented: pages, comments, image upload/storage endpoints, Google/GitHub external login, sitemap, health checks, and integration tests.
+
+## Local Development
+
+Prerequisites:
+
+- .NET SDK compatible with `global.json`.
+- Docker Desktop or another Docker Compose compatible runtime.
+- MySQL port `3306` available, or override the connection string.
+
+Start local MySQL:
+
+```powershell
+docker compose up -d mysql
+```
+
+Build:
+
+```powershell
+dotnet build ZeroX2C.Blog.slnx
+```
+
+Run the API:
+
+```powershell
+dotnet run --project src/ZeroX2C.Blog.API/ZeroX2C.Blog.API.csproj
+```
+
+On startup the API applies EF Core migrations and then runs application bootstrap handlers. Do not leave locally started API processes running after verification work.
+
+OpenAPI and Scalar are mapped by `Program.cs`; use the local application URL from launch output and navigate to the Scalar API reference path.
+
+## Configuration
+
+Current configuration sections:
+
+- `ConnectionStrings:MySql`: MySQL connection string.
+- `Jwt:Issuer`
+- `Jwt:Audience`
+- `Jwt:SigningKey`: must be at least 32 UTF-8 bytes.
+- `Jwt:AccessTokenLifetimeMinutes`
+- `SuperAdmin:UseDefaultPassword`
+
+The checked-in `appsettings.json` is a local development baseline. Use user secrets, environment variables, or deployment-specific configuration for real secrets.
+
+## Technical Users
+
+Technical users are defined in `Modules/Users/KnownUsers.cs`.
+
+- System: id `00000000-0000-0000-0000-000000000001`, username `system`, role `SuperAdmin`.
+- Superadmin: id `00000000-0000-0000-0000-000000000002`, username `superadmin`, role `SuperAdmin`.
+
+The system user is only for code-driven execution contexts and must not get password, token, external login, or controller login paths.
+
+The superadmin password is initialized at startup:
+
+- If the known superadmin does not exist and `SuperAdmin:UseDefaultPassword` is `true`, bootstrap uses the default password defined in `KnownUsers`.
+- If the known superadmin does not exist and `UseDefaultPassword` is `false`, bootstrap generates a random password and logs it on startup.
+- Once the known superadmin exists, its password is not reset by bootstrap and can be changed through the admin API.
+
+## Persistence And Auditing
+
+All entities derived from `EntityBase` are audited through `EntityAuditSaveChangesInterceptor`. Saves require an authenticated `IAuthenticationContext`; bootstrap uses the system context through `IAuthenticationContextManager.AsSystem()`.
+
+Generated IDs should use `Guid.CreateVersion7()` for sortable GUIDs. The known technical-user IDs are the only intentional exception.
+
+EF Core migrations must be created with `dotnet ef`; do not hand-edit migration files.
+
+## Documentation
+
+Project docs live under `docs/architecture/`.
+
+- `functional-requirements.md`: product behavior and rules.
+- `blueprint.md`: implementation architecture and extension guidance.
+- `data-schema.md`: current persistence model.
+- `roadmap.md`: completed work, current gaps, and likely next phases.
+
+Agent-specific instructions are in `AGENTS.md`; read it before modifying code.

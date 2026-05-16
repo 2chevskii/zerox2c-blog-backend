@@ -4,8 +4,8 @@ public abstract class EntityBase
 {
     public required Guid Id { get; set; }
 
-    public required Guid CreatedBy { get; set; }
-    public required DateTime CreatedAt { get; set; }
+    public Guid CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsDeleted { get; set; }

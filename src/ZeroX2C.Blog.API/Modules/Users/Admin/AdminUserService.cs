@@ -1,65 +1,12 @@
 using Microsoft.EntityFrameworkCore;
-using ZeroX2C.Blog.API.Modules.Users.Admin.Contracts;
+using ZeroX2C.Blog.API.Modules.Users.Auth;
+using ZeroX2C.Blog.API.Modules.Users.Contracts.Admin;
 using ZeroX2C.Blog.API.Persistence;
 
 namespace ZeroX2C.Blog.API.Modules.Users.Admin;
 
-public interface IAdminUserService
-{
-    Task<IReadOnlyCollection<AdminUserResponse>> GetUsersAsync(
-        CancellationToken cancellationToken
-    );
-
-    Task<AdminUserOperationResult> UpdateRoleAsync(
-        Guid userId,
-        UserRole role,
-        CancellationToken cancellationToken
-    );
-
-    Task<AdminUserOperationResult> BlockUserAsync(
-        Guid userId,
-        string? reason,
-        CancellationToken cancellationToken
-    );
-
-    Task<AdminUserOperationResult> UnblockUserAsync(
-        Guid userId,
-        CancellationToken cancellationToken
-    );
-}
-
-public enum AdminUserOperationStatus
-{
-    Success,
-    UserNotFound,
-    CannotRemoveOnlySuperAdmin,
-    SuperAdminAlreadyExists,
-    CannotBlockSuperAdmin,
-}
-
-public sealed record AdminUserOperationResult(
-    AdminUserOperationStatus Status,
-    AdminUserResponse? User = null
-)
-{
-    public static AdminUserOperationResult Success(User user) =>
-        new(AdminUserOperationStatus.Success, ToResponse(user));
-
-    public static AdminUserOperationResult Failure(AdminUserOperationStatus status) =>
-        new(status);
-
-    public static AdminUserResponse ToResponse(User user) =>
-        new(
-            user.Id,
-            user.Username,
-            user.Email,
-            user.IsBlocked,
-            user.CreatedAt,
-            user.Role
-        );
-}
-
-public sealed class AdminUserService(BlogDbContext dbContext) : IAdminUserService
+public sealed class AdminUserService(BlogDbContext dbContext, IPasswordHasher passwordHasher)
+    : IAdminUserService
 {
     public async Task<IReadOnlyCollection<AdminUserResponse>> GetUsersAsync(
         CancellationToken cancellationToken
@@ -84,31 +31,21 @@ public sealed class AdminUserService(BlogDbContext dbContext) : IAdminUserServic
             return AdminUserOperationResult.Failure(AdminUserOperationStatus.UserNotFound);
         }
 
-        if (user.Role == UserRole.SuperAdmin && role != UserRole.SuperAdmin)
+        if (KnownUsers.IsKnownUserId(user.Id))
         {
             return AdminUserOperationResult.Failure(
-                AdminUserOperationStatus.CannotRemoveOnlySuperAdmin
+                AdminUserOperationStatus.KnownUserCannotBeModified
             );
         }
 
-        if (user.Role != UserRole.SuperAdmin && role == UserRole.SuperAdmin)
+        if (role == UserRole.SuperAdmin)
         {
-            var superAdminExists = await dbContext.Users.AnyAsync(
-                existingUser =>
-                    existingUser.Id != user.Id && existingUser.Role == UserRole.SuperAdmin,
-                cancellationToken
+            return AdminUserOperationResult.Failure(
+                AdminUserOperationStatus.SuperAdminAlreadyExists
             );
-
-            if (superAdminExists)
-            {
-                return AdminUserOperationResult.Failure(
-                    AdminUserOperationStatus.SuperAdminAlreadyExists
-                );
-            }
         }
 
         user.Role = role;
-        user.UpdatedAt = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return AdminUserOperationResult.Success(user);
@@ -126,6 +63,13 @@ public sealed class AdminUserService(BlogDbContext dbContext) : IAdminUserServic
             return AdminUserOperationResult.Failure(AdminUserOperationStatus.UserNotFound);
         }
 
+        if (KnownUsers.IsKnownUserId(user.Id))
+        {
+            return AdminUserOperationResult.Failure(
+                AdminUserOperationStatus.KnownUserCannotBeModified
+            );
+        }
+
         if (user.Role == UserRole.SuperAdmin)
         {
             return AdminUserOperationResult.Failure(
@@ -136,7 +80,6 @@ public sealed class AdminUserService(BlogDbContext dbContext) : IAdminUserServic
         user.IsBlocked = true;
         user.BlockedAt = DateTimeOffset.UtcNow;
         user.BlockedReason = reason;
-        user.UpdatedAt = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -154,11 +97,42 @@ public sealed class AdminUserService(BlogDbContext dbContext) : IAdminUserServic
             return AdminUserOperationResult.Failure(AdminUserOperationStatus.UserNotFound);
         }
 
+        if (KnownUsers.IsKnownUserId(user.Id))
+        {
+            return AdminUserOperationResult.Failure(
+                AdminUserOperationStatus.KnownUserCannotBeModified
+            );
+        }
+
         user.IsBlocked = false;
         user.BlockedAt = null;
         user.BlockedReason = null;
-        user.UpdatedAt = DateTime.UtcNow;
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return AdminUserOperationResult.Success(user);
+    }
+
+    public async Task<AdminUserOperationResult> UpdatePasswordAsync(
+        Guid userId,
+        string password,
+        CancellationToken cancellationToken
+    )
+    {
+        var user = await FindUserAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return AdminUserOperationResult.Failure(AdminUserOperationStatus.UserNotFound);
+        }
+
+        if (!KnownUsers.CanPasswordBeChanged(user.Id))
+        {
+            return AdminUserOperationResult.Failure(
+                AdminUserOperationStatus.PasswordCannotBeChanged
+            );
+        }
+
+        user.PasswordHash = passwordHasher.HashPassword(password);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return AdminUserOperationResult.Success(user);
