@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.tmp
+bin
+obj
+**/bin
+**/obj
+*.log
+*.err.log
+Dockerfile
+docker-compose.yaml

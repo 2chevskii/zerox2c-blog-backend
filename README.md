@@ -45,6 +45,7 @@ Public endpoints:
 - `POST /api/auth/login`
 - `GET /api/auth/steam`
 - `GET /api/auth/steam/callback`
+- `GET /api/health`
 - `GET /api/me`
 - `GET /api/profile`
 - `POST /api/profile/avatar`
@@ -88,7 +89,7 @@ Admin endpoints:
 - `PUT /api/admin/tags/{id}`
 - `DELETE /api/admin/tags/{id}`
 
-Planned but not currently implemented: pages, comments, Google/GitHub external login, sitemap, health checks, and integration tests.
+Planned but not currently implemented: pages, Google/GitHub external login, sitemap, and integration tests.
 
 ## Local Development
 
@@ -118,7 +119,7 @@ dotnet run --project src/ZeroX2C.Blog.API/ZeroX2C.Blog.API.csproj
 
 On startup the API applies EF Core migrations and then runs application bootstrap handlers. Do not leave locally started API processes running after verification work.
 
-OpenAPI and Scalar are mapped by `Program.cs`; use the local application URL from launch output and navigate to the Scalar API reference path.
+OpenAPI and Scalar are mapped outside production by `Program.cs`; use the local application URL from launch output and navigate to the Scalar API reference path.
 
 ## Configuration
 
@@ -158,11 +159,12 @@ EF Core migrations must be created with `dotnet ef`; do not hand-edit migration 
 
 ## Documentation
 
-Project docs live under `docs/architecture/`.
+Project docs live under `docs/architecture/`; deployment notes live under `docs/deployment.md`.
 
 - `functional-requirements.md`: product behavior and rules.
 - `blueprint.md`: implementation architecture and extension guidance.
 - `data-schema.md`: current persistence model.
 - `roadmap.md`: completed work, current gaps, and likely next phases.
+- `docs/deployment.md`: Docker/GitHub Actions/VPS deployment notes.
 
 Agent-specific instructions are in `AGENTS.md`; read it before modifying code.

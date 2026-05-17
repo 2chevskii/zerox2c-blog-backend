@@ -3,6 +3,12 @@
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
   </Folder>
+  <Folder Name="/ci-cd/">
+    <File Path=".github/workflows/deploy.yml" />
+    <File Path="scripts/deploy.sh" />
+    <File Path="scripts/resolve-deployment-context.sh" />
+    <File Path="scripts/smoke-docker-image.sh" />
+  </Folder>
   <Folder Name="/misc/">
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />

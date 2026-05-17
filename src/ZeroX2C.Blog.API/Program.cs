@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
@@ -149,9 +150,33 @@ builder.Services.AddOpenApi(openapi =>
 
 var app = builder.Build();
 
-app.UseDeveloperExceptionPage();
-app.MapOpenApi();
-app.MapScalarApiReference();
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor
+        | ForwardedHeaders.XForwardedHost
+        | ForwardedHeaders.XForwardedProto,
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
+if (
+    !app.Environment.IsProduction()
+    || app.Configuration.GetValue<bool>("Diagnostics:DeveloperExceptionPageEnabled")
+)
+{
+    app.UseDeveloperExceptionPage();
+}
+
+if (!app.Environment.IsProduction() || app.Configuration.GetValue<bool>("OpenApi:Enabled"))
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+
+app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy" })).AllowAnonymous();
 app.UseAuthentication();
 app.UseMiddleware<AuthenticationContextMiddleware>();
 app.UseAuthorization();
