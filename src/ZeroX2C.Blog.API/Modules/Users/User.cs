@@ -1,4 +1,5 @@
 using ZeroX2C.Blog.API.Modules.Shared;
+using ZeroX2C.Blog.API.Modules.Posts;
 
 namespace ZeroX2C.Blog.API.Modules.Users;
 
@@ -14,4 +15,5 @@ public sealed class User : EntityBase
     public string? BlockedReason { get; set; }
 
     public List<UserExternalLogin> ExternalLogins { get; set; } = [];
+    public List<PostReaction> PostReactions { get; set; } = [];
 }

@@ -49,6 +49,9 @@ Public endpoints:
 - `GET /api/posts`
 - `GET /api/posts/{id:guid}`
 - `GET /api/posts/{slug}`
+- `GET /api/posts/{id:guid}/reaction`
+- `PUT /api/posts/{id:guid}/reaction`
+- `DELETE /api/posts/{id:guid}/reaction`
 - `GET /api/images/{id:guid}`
 
 `GET /api/posts` accepts `offset`, `limit`, `search`, `tags`, `from`, and `to`.

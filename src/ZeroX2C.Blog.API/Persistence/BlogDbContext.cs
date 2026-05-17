@@ -15,6 +15,7 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
     public DbSet<PostMarkdownDraft> PostMarkdownDrafts { get; set; }
     public DbSet<PostMarkdownDocument> PostMarkdownDocuments { get; set; }
     public DbSet<PostMarkdownImage> PostMarkdownImages { get; set; }
+    public DbSet<PostReaction> PostReactions { get; set; }
     public DbSet<Tag> Tags { get; set; }
     public DbSet<PostTag> PostTags { get; set; }
     public DbSet<Image> Images { get; set; }
@@ -152,6 +153,32 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasOne(image => image.Image)
                 .WithMany()
                 .HasForeignKey(image => image.ImageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PostReaction>(entity =>
+        {
+            entity.ToTable("PostReactions");
+            entity.HasKey(reaction => reaction.Id);
+
+            entity.Property(reaction => reaction.ReactionType)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(reaction => reaction.CreatedAt).IsRequired();
+
+            entity.HasIndex(reaction => reaction.PostId);
+            entity.HasIndex(reaction => reaction.UserId);
+            entity.HasIndex(reaction => new { reaction.PostId, reaction.UserId }).IsUnique();
+
+            entity.HasOne(reaction => reaction.Post)
+                .WithMany(post => post.Reactions)
+                .HasForeignKey(reaction => reaction.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(reaction => reaction.User)
+                .WithMany(user => user.PostReactions)
+                .HasForeignKey(reaction => reaction.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

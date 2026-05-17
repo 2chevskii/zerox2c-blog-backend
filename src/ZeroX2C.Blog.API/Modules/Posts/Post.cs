@@ -20,6 +20,7 @@ public class Post : EntityBase
     public Guid? BannerImageId { get; set; }
 
     public List<PostTag> PostTags { get; set; } = [];
+    public List<PostReaction> Reactions { get; set; } = [];
     public PostMarkdownDraft? MarkdownDraft { get; set; }
     public PostMarkdownDocument? MarkdownDocument { get; set; }
     public List<PostMarkdownImage> MarkdownImages { get; set; } = [];
