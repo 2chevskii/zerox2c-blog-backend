@@ -51,7 +51,7 @@ Public endpoints:
 - `PUT /api/profile/comment-replies/{replyCommentId:guid}/seen`
 - `GET /api/posts`
 - `GET /api/posts/{id:guid}`
-- `GET /api/posts/{slug}`
+- `GET /api/posts/slugs/{slug}/id`
 - `GET /api/posts/{id:guid}/comments`
 - `POST /api/posts/{id:guid}/comments`
 - `PUT /api/posts/{postId:guid}/comments/{commentId:guid}`

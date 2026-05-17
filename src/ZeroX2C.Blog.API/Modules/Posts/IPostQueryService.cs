@@ -19,6 +19,8 @@ public interface IPostQueryService
         CancellationToken cancellationToken
     );
 
+    Task<Guid?> GetPublishedPostIdBySlugAsync(string slug, CancellationToken cancellationToken);
+
     Task<PostDetailsResponse?> GetPublishedPostBySlugAsync(
         string slug,
         CancellationToken cancellationToken

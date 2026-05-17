@@ -48,15 +48,14 @@ public sealed class PostsController(
         return post is null ? NotFound() : post;
     }
 
-    // ReSharper disable once RouteTemplates.RouteParameterConstraintNotResolved
-    [HttpGet("{slug:slug}")]
-    public async Task<ActionResult<PostDetailsResponse>> GetPostDetails(
+    [HttpGet("slugs/{slug:slug}/id")]
+    public async Task<ActionResult<PostSlugResolutionResponse>> ResolveSlug(
         string slug,
         CancellationToken cancellationToken
     )
     {
-        var post = await postQueryService.GetPublishedPostBySlugAsync(slug, cancellationToken);
-        return post is null ? NotFound() : post;
+        var postId = await postQueryService.GetPublishedPostIdBySlugAsync(slug, cancellationToken);
+        return postId is null ? NotFound() : new PostSlugResolutionResponse(postId.Value);
     }
 
     [HttpGet("{id:guid}/comments")]

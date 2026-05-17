@@ -186,20 +186,28 @@ public sealed class PostQueryService(
         CancellationToken cancellationToken
     )
     {
+        var postId = await GetPublishedPostIdBySlugAsync(slug, cancellationToken);
+
+        return postId is null
+            ? null
+            : await GetPublishedPostByIdAsync(postId.Value, cancellationToken);
+    }
+
+    public async Task<Guid?> GetPublishedPostIdBySlugAsync(
+        string slug,
+        CancellationToken cancellationToken
+    )
+    {
         var normalizedSlug = PostSlug.Normalize(slug);
         if (normalizedSlug is null)
         {
             return null;
         }
 
-        var postId = await PublishedPostsQuery()
+        return await PublishedPostsQuery()
             .Where(existingPost => existingPost.Slug == normalizedSlug)
             .Select(existingPost => (Guid?)existingPost.Id)
             .SingleOrDefaultAsync(cancellationToken);
-
-        return postId is null
-            ? null
-            : await GetPublishedPostByIdAsync(postId.Value, cancellationToken);
     }
 
     private IQueryable<Post> PublishedPostsQuery() =>
