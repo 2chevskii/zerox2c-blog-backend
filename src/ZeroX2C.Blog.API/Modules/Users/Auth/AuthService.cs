@@ -8,7 +8,8 @@ public sealed class AuthService(
     BlogDbContext dbContext,
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService,
-    ISteamOpenIdClient steamOpenIdClient
+    ISteamOpenIdClient steamOpenIdClient,
+    IAuthenticationContextManager authenticationContextManager
 ) : IAuthService
 {
     public string CreateSteamAuthenticationUrl(string returnTo, string realm) =>
@@ -19,6 +20,8 @@ public sealed class AuthService(
         CancellationToken cancellationToken
     )
     {
+        using var authenticationScope = authenticationContextManager.AsSystem();
+
         var username = UserNormalization.NormalizeUsername(request.Username);
         var email = UserNormalization.NormalizeEmail(request.Email);
 
@@ -39,9 +42,7 @@ public sealed class AuthService(
         );
         if (emailExists)
         {
-            return AuthOperationResult<AuthResponse>.Failure(
-                AuthOperationStatus.EmailAlreadyTaken
-            );
+            return AuthOperationResult<AuthResponse>.Failure(AuthOperationStatus.EmailAlreadyTaken);
         }
 
         var userId = Guid.CreateVersion7();
@@ -179,13 +180,7 @@ public sealed class AuthService(
         }
 
         return AuthOperationResult<CurrentUserResponse>.Success(
-            new CurrentUserResponse(
-                user.Id,
-                user.Username,
-                user.Email,
-                user.IsBlocked,
-                user.Role
-            )
+            new CurrentUserResponse(user.Id, user.Username, user.Email, user.IsBlocked, user.Role)
         );
     }
 
