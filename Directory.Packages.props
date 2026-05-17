@@ -4,6 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Duende.IdentityModel" Version="8.1.0" />
+    <PackageVersion Include="HtmlSanitizer" Version="9.0.892" />
+    <PackageVersion Include="Markdig" Version="1.2.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.16" />
     <PackageVersion Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />

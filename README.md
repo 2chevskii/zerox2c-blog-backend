@@ -10,6 +10,8 @@ This repository is no longer a generic .NET template. Treat it as an application
 - ASP.NET Core controllers.
 - EF Core 9.x with `Pomelo.EntityFrameworkCore.MySql`.
 - MySQL 8.4 for local development through Docker Compose.
+- Markdig for backend Markdown parsing/rendering.
+- HtmlSanitizer for backend-rendered HTML sanitization.
 - JWT bearer authentication.
 - Scalar/OpenAPI for local API exploration.
 - Central package management through `Directory.Packages.props`.
@@ -52,6 +54,7 @@ Public endpoints:
 Admin endpoints:
 
 - `POST /api/admin/images`
+- `POST /api/admin/markdown/render`
 - `GET /api/admin/users`
 - `PUT /api/admin/users/{id}/role`
 - `PUT /api/admin/users/{id}/password`
@@ -64,6 +67,8 @@ Admin endpoints:
 - `POST /api/admin/posts/{id}/publish`
 - `POST /api/admin/posts/{id}/unpublish`
 - `DELETE /api/admin/posts/{id}`
+- `GET /api/admin/posts/{id}/markdown/images`
+- `POST /api/admin/posts/{id}/markdown/images`
 - `GET /api/admin/tags`
 - `GET /api/admin/tags/{id}`
 - `POST /api/admin/tags`

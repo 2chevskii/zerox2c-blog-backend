@@ -12,6 +12,7 @@ using ZeroX2C.Blog.API.CrossCutting.Bootstrap;
 using ZeroX2C.Blog.API.Modules.Assets.Images;
 using ZeroX2C.Blog.API.Modules.Posts;
 using ZeroX2C.Blog.API.Modules.Posts.Admin;
+using ZeroX2C.Blog.API.Modules.Posts.Markdown;
 using ZeroX2C.Blog.API.Modules.Users;
 using ZeroX2C.Blog.API.Modules.Users.Admin;
 using ZeroX2C.Blog.API.Modules.Users.Auth;
@@ -55,8 +56,13 @@ builder.Services.AddSingleton<IAuthenticationContext>(serviceProvider =>
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IImageQueryService, ImageQueryService>();
 builder.Services.AddScoped<IAdminImageService, AdminImageService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IMarkdownDocumentRenderer, MarkdownDocumentRenderer>();
 builder.Services.AddScoped<IPostQueryService, PostQueryService>();
+builder.Services.AddScoped<ITagQueryService, TagQueryService>();
 builder.Services.AddScoped<IAdminPostService, AdminPostService>();
+builder.Services.AddScoped<IAdminMarkdownService, AdminMarkdownService>();
+builder.Services.AddScoped<IAdminPostMarkdownImageService, AdminPostMarkdownImageService>();
 builder.Services.AddScoped<IAdminTagService, AdminTagService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -66,6 +72,7 @@ builder.Services.AddScoped<IAuditEntityChangeHandler, DeletedEntityAuditHandler>
 builder.Services.AddScoped<EntityAuditSaveChangesInterceptor>();
 builder.Services.AddScoped<ApplicationBootstrapper>();
 builder.Services.AddScoped<IBootstrapHandler, SuperAdminBootstrapHandler>();
+builder.Services.AddScoped<IBootstrapHandler, PostMarkdownBootstrapHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, NotBlockedRequirementHandler>();
 builder.Services.AddHttpClient<ISteamOpenIdClient, SteamOpenIdClient>();
 

@@ -1,6 +1,6 @@
 # Functional Requirements
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 This document describes intended product behavior and explicitly marks what is already implemented. Use it when deciding whether a code change is preserving behavior, completing planned behavior, or intentionally changing product scope.
 
@@ -159,15 +159,16 @@ Rules:
 Public users can:
 
 - View published post list.
-- Search published posts by title, subtitle, or excerpt.
+- Search published posts by title, subtitle, or tag.
 - View published post details by id.
 - View published post details by slug.
+- Viewing published post details increments the post view count.
 
 Admins can:
 
 - List non-deleted posts.
 - Filter posts by status.
-- Search posts by title, subtitle, excerpt, or slug.
+- Search posts by title, subtitle, or slug.
 - Create draft posts.
 - Update post content and tag assignments.
 - Publish posts.
@@ -179,6 +180,7 @@ Rules:
 - Public endpoints expose only non-deleted posts with `Published` status and non-null `PublishedAt`.
 - Admin endpoints expose drafts and published posts but exclude soft-deleted posts.
 - New posts start as drafts.
+- New posts start with zero likes, dislikes, comments, and views.
 - Publishing sets `Status`, `PublishedBy`, and `PublishedAt`.
 - Unpublishing returns the post to draft state and clears publish metadata.
 - Post slugs are generated from the title when omitted on create or update.

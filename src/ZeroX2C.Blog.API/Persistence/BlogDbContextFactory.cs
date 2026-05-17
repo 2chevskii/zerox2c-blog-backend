@@ -9,7 +9,7 @@ public sealed class BlogDbContextFactory : IDesignTimeDbContextFactory<BlogDbCon
     {
         var options = new DbContextOptionsBuilder<BlogDbContext>()
             .UseMySql(
-                "Server=localhost;Port=3306;Database=zerox2c_blog;User=root;Password=password;",
+                "Server=127.0.0.1;Port=3306;Database=dev;User=root;Password=rootpassword;AllowPublicKeyRetrieval=True;SslMode=None;",
                 new MySqlServerVersion(new Version(8, 0, 36))
             )
             .Options;

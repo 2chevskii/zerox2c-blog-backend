@@ -41,6 +41,8 @@ Current stack:
 - MySQL provider: `Pomelo.EntityFrameworkCore.MySql` 9.x.
 - Database: MySQL.
 - Local database: Docker Compose with MySQL 8.4.
+- Markdown parsing/rendering: `Markdig`.
+- HTML sanitization: `HtmlSanitizer`.
 - API docs: OpenAPI and Scalar.
 - Authentication: JWT bearer.
 
@@ -85,15 +87,16 @@ The authentication context middleware must stay after `UseAuthentication()` and 
 Current module layout:
 
 ```text
-Modules/
-  Assets/
-    Images/               MySQL-backed image entity, upload/read controllers, image services.
-  Posts/
-    Admin/                Admin post/tag use cases and operation results.
-    Contracts/            Post DTOs.
-    Contracts/Tags/       Tag DTOs.
-    Controllers/          Public and admin post/tag controllers.
-    Tags/                 Tag entity, post-tag join entity, tag name rules.
+  Modules/
+    Assets/
+      Images/               MySQL-backed image entity, upload/read controllers, image services.
+    Posts/
+      Admin/                Admin post/tag use cases and operation results.
+      Contracts/            Post DTOs.
+      Contracts/Tags/       Tag DTOs.
+      Controllers/          Public and admin post/tag controllers.
+      Markdown/             Markdown document entities, rendering, image references, backfill.
+      Tags/                 Tag entity, post-tag join entity, tag name rules.
     Post.cs               Post entity.
     PostQueryService.cs   Public post query service.
   Shared/
@@ -132,6 +135,7 @@ Implemented public API:
 Implemented admin API:
 
 - `POST /api/admin/images`
+- `POST /api/admin/markdown/render`
 - `GET /api/admin/users`
 - `PUT /api/admin/users/{id}/role`
 - `POST /api/admin/users/{id}/block`
@@ -143,6 +147,8 @@ Implemented admin API:
 - `POST /api/admin/posts/{id}/publish`
 - `POST /api/admin/posts/{id}/unpublish`
 - `DELETE /api/admin/posts/{id}`
+- `GET /api/admin/posts/{id}/markdown/images`
+- `POST /api/admin/posts/{id}/markdown/images`
 - `GET /api/admin/tags`
 - `GET /api/admin/tags/{id}`
 - `POST /api/admin/tags`
@@ -231,8 +237,11 @@ Posts:
 
 - `PostStatus` controls draft/published/archive-like state. Current public behavior uses only published posts.
 - Public queries require `Status == Published`, `PublishedAt != null`, and `!IsDeleted`.
+- Public post details read backend-rendered sanitized HTML from `PostMarkdownDocument`.
 - Admin queries exclude deleted posts but include draft/published states.
+- Admin editing writes `PostMarkdownDraft` and backend-rendered preview HTML.
 - `PublishedBy` stores the authenticated actor id at publish time.
+- Publishing copies the current draft document into the published document table.
 - Slugs are optional for posts.
 
 Tags:
@@ -255,6 +264,8 @@ Image rules:
 - Public retrieval is by image id so post bodies can embed `/api/images/{id}` URLs.
 - Supported purposes are `Cover`, `Banner`, and `Embedded`.
 - Post cover and banner image ids must refer to active images with matching purpose.
+- Markdown body images are uploaded through the post-scoped Markdown image endpoint and referenced in editor text by local paths such as `images/{imageId}`.
+- Markdown rendering resolves local image paths only when the image is attached to the post.
 - Keep image storage behind the `Modules/Assets/Images` service/controller boundary so MySQL blobs can move to object storage later without changing post services or frontend contracts.
 
 ## 10. Security Notes
