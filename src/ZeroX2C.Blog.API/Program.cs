@@ -16,6 +16,7 @@ using ZeroX2C.Blog.API.Modules.Posts.Markdown;
 using ZeroX2C.Blog.API.Modules.Users;
 using ZeroX2C.Blog.API.Modules.Users.Admin;
 using ZeroX2C.Blog.API.Modules.Users.Auth;
+using ZeroX2C.Blog.API.Modules.Users.Profile;
 using ZeroX2C.Blog.API.Persistence;
 using ZeroX2C.Blog.API.Persistence.Auditing;
 using ZeroX2C.Blog.API.Utility.Configuration;
@@ -49,6 +50,7 @@ builder.Services.Configure<SuperAdminOptions>(
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddSingleton<IAuthenticationContextManager, AuthenticationContextManager>();
 builder.Services.AddSingleton<IAuthenticationContext>(serviceProvider =>
     serviceProvider.GetRequiredService<IAuthenticationContextManager>().Current

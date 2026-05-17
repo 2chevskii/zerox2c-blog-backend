@@ -5,4 +5,5 @@ public enum ImagePurpose
     Cover,
     Banner,
     Embedded,
+    Avatar,
 }

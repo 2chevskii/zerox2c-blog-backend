@@ -17,6 +17,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
     public DbSet<PostMarkdownImage> PostMarkdownImages { get; set; }
     public DbSet<PostReaction> PostReactions { get; set; }
     public DbSet<PostComment> PostComments { get; set; }
+    public DbSet<PostView> PostViews { get; set; }
+    public DbSet<PostCommentReplyState> PostCommentReplyStates { get; set; }
     public DbSet<Tag> Tags { get; set; }
     public DbSet<PostTag> PostTags { get; set; }
     public DbSet<Image> Images { get; set; }
@@ -39,6 +41,12 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
 
             entity.HasIndex(user => user.Username).IsUnique();
             entity.HasIndex(user => user.Email).IsUnique();
+            entity.HasIndex(user => user.AvatarImageId);
+
+            entity.HasOne<Image>()
+                .WithMany()
+                .HasForeignKey(user => user.AvatarImageId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<UserExternalLogin>(entity =>
@@ -217,6 +225,53 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
                 .WithMany(comment => comment.Replies)
                 .HasForeignKey(comment => comment.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PostView>(entity =>
+        {
+            entity.ToTable("PostViews");
+            entity.HasKey(view => view.Id);
+
+            entity.Property(view => view.ViewCount).HasDefaultValue(0L).IsRequired();
+            entity.Property(view => view.LastViewedAt).IsRequired();
+            entity.Property(view => view.CreatedAt).IsRequired();
+
+            entity.HasIndex(view => view.PostId);
+            entity.HasIndex(view => view.UserId);
+            entity.HasIndex(view => new { view.UserId, view.LastViewedAt });
+            entity.HasIndex(view => new { view.PostId, view.UserId }).IsUnique();
+
+            entity.HasOne(view => view.Post)
+                .WithMany(post => post.Views)
+                .HasForeignKey(view => view.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(view => view.User)
+                .WithMany(user => user.PostViews)
+                .HasForeignKey(view => view.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PostCommentReplyState>(entity =>
+        {
+            entity.ToTable("PostCommentReplyStates");
+            entity.HasKey(state => state.Id);
+
+            entity.Property(state => state.CreatedAt).IsRequired();
+
+            entity.HasIndex(state => state.UserId);
+            entity.HasIndex(state => state.ReplyCommentId);
+            entity.HasIndex(state => new { state.UserId, state.ReplyCommentId }).IsUnique();
+
+            entity.HasOne(state => state.User)
+                .WithMany(user => user.CommentReplyStates)
+                .HasForeignKey(state => state.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(state => state.ReplyComment)
+                .WithMany(comment => comment.ReplyStates)
+                .HasForeignKey(state => state.ReplyCommentId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<Tag>(entity =>

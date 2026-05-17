@@ -8,6 +8,7 @@ public sealed class User : EntityBase
     public required string Username { get; set; }
     public required string Email { get; set; }
     public required byte[] PasswordHash { get; set; }
+    public Guid? AvatarImageId { get; set; }
     public UserRole Role { get; set; } = UserRole.User;
     public bool EmailConfirmed { get; set; }
     public bool IsBlocked { get; set; }
@@ -17,4 +18,6 @@ public sealed class User : EntityBase
     public List<UserExternalLogin> ExternalLogins { get; set; } = [];
     public List<PostReaction> PostReactions { get; set; } = [];
     public List<PostComment> PostComments { get; set; } = [];
+    public List<PostView> PostViews { get; set; } = [];
+    public List<PostCommentReplyState> CommentReplyStates { get; set; } = [];
 }

@@ -46,6 +46,9 @@ Public endpoints:
 - `GET /api/auth/steam`
 - `GET /api/auth/steam/callback`
 - `GET /api/me`
+- `GET /api/profile`
+- `POST /api/profile/avatar`
+- `PUT /api/profile/comment-replies/{replyCommentId:guid}/seen`
 - `GET /api/posts`
 - `GET /api/posts/{id:guid}`
 - `GET /api/posts/{slug}`

@@ -14,6 +14,7 @@ public sealed class PostComment : EntityBase
     public Guid? ParentCommentId { get; set; }
     public PostComment? ParentComment { get; set; }
     public List<PostComment> Replies { get; set; } = [];
+    public List<PostCommentReplyState> ReplyStates { get; set; } = [];
     public required string Body { get; set; }
     public PostCommentStatus Status { get; set; } = PostCommentStatus.Visible;
 }

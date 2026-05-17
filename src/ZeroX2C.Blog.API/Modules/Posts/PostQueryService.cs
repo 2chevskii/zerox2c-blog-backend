@@ -2,11 +2,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using ZeroX2C.Blog.API.Modules.Posts.Contracts;
 using ZeroX2C.Blog.API.Modules.Posts.Tags;
+using ZeroX2C.Blog.API.Modules.Users.Auth;
 using ZeroX2C.Blog.API.Persistence;
 
 namespace ZeroX2C.Blog.API.Modules.Posts;
 
-public sealed class PostQueryService(BlogDbContext dbContext, IMemoryCache memoryCache)
+public sealed class PostQueryService(
+    BlogDbContext dbContext,
+    IMemoryCache memoryCache,
+    IAuthenticationContext authenticationContext,
+    TimeProvider timeProvider
+)
     : IPostQueryService
 {
     private static readonly TimeSpan PostDetailsCacheLifetime = TimeSpan.FromMinutes(5);
@@ -121,6 +127,8 @@ public sealed class PostQueryService(BlogDbContext dbContext, IMemoryCache memor
                 cancellationToken
             );
 
+        await TrackAuthenticatedPostViewAsync(post.Id, cancellationToken);
+
         var updatedPost = post with { ViewCount = post.ViewCount + 1 };
         memoryCache.Set(
             $"published-post:id:{post.Id:N}",
@@ -132,6 +140,45 @@ public sealed class PostQueryService(BlogDbContext dbContext, IMemoryCache memor
         );
 
         return updatedPost;
+    }
+
+    private async Task TrackAuthenticatedPostViewAsync(
+        Guid postId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!authenticationContext.IsAuthenticated)
+        {
+            return;
+        }
+
+        var now = timeProvider.GetUtcNow().DateTime;
+        var postView = await dbContext.PostViews.SingleOrDefaultAsync(
+            view => view.PostId == postId && view.UserId == authenticationContext.UserId,
+            cancellationToken
+        );
+
+        if (postView is null)
+        {
+            dbContext.PostViews.Add(
+                new PostView
+                {
+                    Id = Guid.CreateVersion7(),
+                    PostId = postId,
+                    UserId = authenticationContext.UserId,
+                    ViewCount = 1,
+                    LastViewedAt = now,
+                }
+            );
+        }
+        else
+        {
+            postView.ViewCount++;
+            postView.LastViewedAt = now;
+            postView.IsDeleted = false;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<PostDetailsResponse?> GetPublishedPostBySlugAsync(
