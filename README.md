@@ -159,7 +159,7 @@ EF Core migrations must be created with `dotnet ef`; do not hand-edit migration 
 
 ## Documentation
 
-Project docs live under `docs/architecture/`; deployment notes live under `docs/deployment.md`.
+Project docs live under `docs/architecture/`; deployment runbook lives under `docs/deployment.md`.
 
 - `functional-requirements.md`: product behavior and rules.
 - `blueprint.md`: implementation architecture and extension guidance.
