@@ -9,6 +9,8 @@ public interface IPostQueryService
         int limit,
         string? search,
         string? tags,
+        DateOnly? from,
+        DateOnly? to,
         CancellationToken cancellationToken
     );
 

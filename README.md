@@ -51,6 +51,10 @@ Public endpoints:
 - `GET /api/posts/{slug}`
 - `GET /api/images/{id:guid}`
 
+`GET /api/posts` accepts `offset`, `limit`, `search`, `tags`, `from`, and `to`.
+The `tags` value is a comma-separated list of tag names. `from` and `to` are
+inclusive published-date filters in `yyyy-MM-dd` format.
+
 Admin endpoints:
 
 - `POST /api/admin/images`

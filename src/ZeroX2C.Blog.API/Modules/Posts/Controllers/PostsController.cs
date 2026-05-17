@@ -15,6 +15,8 @@ public sealed class PostsController(IPostQueryService postQueryService) : Contro
         int limit = 10,
         string? search = null,
         string? tags = null,
+        DateOnly? from = null,
+        DateOnly? to = null,
         CancellationToken cancellationToken = default
     ) =>
         Ok(
@@ -23,6 +25,8 @@ public sealed class PostsController(IPostQueryService postQueryService) : Contro
                 limit,
                 search,
                 tags,
+                from,
+                to,
                 cancellationToken
             )
         );

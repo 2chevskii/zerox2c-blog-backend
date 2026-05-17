@@ -132,6 +132,9 @@ Implemented public API:
 - `GET /api/posts/{slug}`
 - `GET /api/images/{id:guid}`
 
+`GET /api/posts` supports `offset`, `limit`, `search`, comma-separated `tags`,
+and inclusive `from` / `to` published-date filters.
+
 Implemented admin API:
 
 - `POST /api/admin/images`

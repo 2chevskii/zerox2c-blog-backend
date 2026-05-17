@@ -160,6 +160,7 @@ Public users can:
 
 - View published post list.
 - Search published posts by title, subtitle, or tag.
+- Filter published post lists by tag and published date range.
 - View published post details by id.
 - View published post details by slug.
 - Viewing published post details increments the post view count.
@@ -178,6 +179,7 @@ Admins can:
 Rules:
 
 - Public endpoints expose only non-deleted posts with `Published` status and non-null `PublishedAt`.
+- Public post-list date filters use `from` and `to` query parameters as inclusive calendar dates.
 - Admin endpoints expose drafts and published posts but exclude soft-deleted posts.
 - New posts start as drafts.
 - New posts start with zero likes, dislikes, comments, and views.

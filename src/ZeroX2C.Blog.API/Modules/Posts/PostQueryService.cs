@@ -16,6 +16,8 @@ public sealed class PostQueryService(BlogDbContext dbContext, IMemoryCache memor
         int limit,
         string? search,
         string? tags,
+        DateOnly? from,
+        DateOnly? to,
         CancellationToken cancellationToken
     )
     {
@@ -50,6 +52,18 @@ public sealed class PostQueryService(BlogDbContext dbContext, IMemoryCache memor
                     .Count()
                 == tagNames.Length
             );
+        }
+
+        if (from is not null)
+        {
+            var publishedFrom = from.Value.ToDateTime(TimeOnly.MinValue);
+            query = query.Where(post => post.PublishedAt >= publishedFrom);
+        }
+
+        if (to is not null)
+        {
+            var publishedBefore = to.Value.AddDays(1).ToDateTime(TimeOnly.MinValue);
+            query = query.Where(post => post.PublishedAt < publishedBefore);
         }
 
         var posts = await query
