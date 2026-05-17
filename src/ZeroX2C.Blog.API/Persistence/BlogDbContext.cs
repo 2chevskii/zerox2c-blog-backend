@@ -16,6 +16,7 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
     public DbSet<PostMarkdownDocument> PostMarkdownDocuments { get; set; }
     public DbSet<PostMarkdownImage> PostMarkdownImages { get; set; }
     public DbSet<PostReaction> PostReactions { get; set; }
+    public DbSet<PostComment> PostComments { get; set; }
     public DbSet<Tag> Tags { get; set; }
     public DbSet<PostTag> PostTags { get; set; }
     public DbSet<Image> Images { get; set; }
@@ -180,6 +181,42 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
                 .WithMany(user => user.PostReactions)
                 .HasForeignKey(reaction => reaction.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PostComment>(entity =>
+        {
+            entity.ToTable("PostComments");
+            entity.HasKey(comment => comment.Id);
+
+            entity.Property(comment => comment.Body)
+                .HasMaxLength(PostComment.MaxBodyLength)
+                .IsRequired();
+            entity.Property(comment => comment.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .HasDefaultValue(PostCommentStatus.Visible)
+                .IsRequired();
+            entity.Property(comment => comment.CreatedAt).IsRequired();
+
+            entity.HasIndex(comment => comment.PostId);
+            entity.HasIndex(comment => comment.AuthorUserId);
+            entity.HasIndex(comment => comment.ParentCommentId);
+            entity.HasIndex(comment => new { comment.PostId, comment.CreatedAt });
+
+            entity.HasOne(comment => comment.Post)
+                .WithMany(post => post.Comments)
+                .HasForeignKey(comment => comment.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(comment => comment.AuthorUser)
+                .WithMany(user => user.PostComments)
+                .HasForeignKey(comment => comment.AuthorUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(comment => comment.ParentComment)
+                .WithMany(comment => comment.Replies)
+                .HasForeignKey(comment => comment.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<Tag>(entity =>

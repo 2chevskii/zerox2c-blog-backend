@@ -21,6 +21,7 @@ public class Post : EntityBase
 
     public List<PostTag> PostTags { get; set; } = [];
     public List<PostReaction> Reactions { get; set; } = [];
+    public List<PostComment> Comments { get; set; } = [];
     public PostMarkdownDraft? MarkdownDraft { get; set; }
     public PostMarkdownDocument? MarkdownDocument { get; set; }
     public List<PostMarkdownImage> MarkdownImages { get; set; } = [];

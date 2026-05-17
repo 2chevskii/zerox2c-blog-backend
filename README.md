@@ -49,6 +49,9 @@ Public endpoints:
 - `GET /api/posts`
 - `GET /api/posts/{id:guid}`
 - `GET /api/posts/{slug}`
+- `GET /api/posts/{id:guid}/comments`
+- `POST /api/posts/{id:guid}/comments`
+- `PUT /api/posts/{postId:guid}/comments/{commentId:guid}`
 - `GET /api/posts/{id:guid}/reaction`
 - `PUT /api/posts/{id:guid}/reaction`
 - `DELETE /api/posts/{id:guid}/reaction`

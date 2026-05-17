@@ -16,4 +16,5 @@ public sealed class User : EntityBase
 
     public List<UserExternalLogin> ExternalLogins { get; set; } = [];
     public List<PostReaction> PostReactions { get; set; } = [];
+    public List<PostComment> PostComments { get; set; } = [];
 }

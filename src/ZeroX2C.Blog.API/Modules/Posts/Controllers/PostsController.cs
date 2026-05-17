@@ -10,7 +10,8 @@ namespace ZeroX2C.Blog.API.Modules.Posts.Controllers;
 [ApiController, Route("api/posts")]
 public sealed class PostsController(
     IPostQueryService postQueryService,
-    IPostReactionService postReactionService
+    IPostReactionService postReactionService,
+    IPostCommentService postCommentService
 ) : ControllerBase
 {
     [HttpGet]
@@ -56,6 +57,53 @@ public sealed class PostsController(
     {
         var post = await postQueryService.GetPublishedPostBySlugAsync(slug, cancellationToken);
         return post is null ? NotFound() : post;
+    }
+
+    [HttpGet("{id:guid}/comments")]
+    public async Task<ActionResult<IReadOnlyCollection<PostCommentResponse>>> GetComments(
+        Guid id,
+        CancellationToken cancellationToken
+    )
+    {
+        var comments = await postCommentService.GetVisibleCommentsAsync(id, cancellationToken);
+        return comments is null ? NotFound() : Ok(comments);
+    }
+
+    [HttpPost("{id:guid}/comments")]
+    [Authorize(Policy = AuthorizationPolicyNames.AuthenticatedNotBlocked)]
+    public async Task<ActionResult<PostCommentResponse>> CreateComment(
+        Guid id,
+        PostCommentRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var result = await postCommentService.CreateCommentAsync(
+            id,
+            request.Body,
+            request.ParentCommentId,
+            cancellationToken
+        );
+
+        return ToCommentActionResult(result);
+    }
+
+    [HttpPut("{postId:guid}/comments/{commentId:guid}")]
+    [Authorize(Policy = AuthorizationPolicyNames.AuthenticatedNotBlocked)]
+    public async Task<ActionResult<PostCommentResponse>> UpdateComment(
+        Guid postId,
+        Guid commentId,
+        UpdatePostCommentRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var result = await postCommentService.UpdateCommentAsync(
+            postId,
+            commentId,
+            request.Body,
+            cancellationToken
+        );
+
+        return ToCommentActionResult(result);
     }
 
     [HttpGet("{id:guid}/reaction")]
@@ -104,6 +152,22 @@ public sealed class PostsController(
         {
             PostReactionOperationStatus.Success => result.Response!,
             PostReactionOperationStatus.PostNotFound => NotFound(),
+            _ => StatusCode(StatusCodes.Status500InternalServerError),
+        };
+
+    private ActionResult<PostCommentResponse> ToCommentActionResult(
+        PostCommentOperationResult result
+    ) =>
+        result.Status switch
+        {
+            PostCommentOperationStatus.Success => result.Response!,
+            PostCommentOperationStatus.PostNotFound => NotFound(),
+            PostCommentOperationStatus.ParentCommentNotFound => ValidationProblem(
+                "Parent comment was not found."
+            ),
+            PostCommentOperationStatus.CommentNotFound => NotFound(),
+            PostCommentOperationStatus.NotCommentAuthor => Forbid(),
+            PostCommentOperationStatus.EmptyBody => ValidationProblem("Comment body is required."),
             _ => StatusCode(StatusCodes.Status500InternalServerError),
         };
 }

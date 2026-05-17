@@ -60,6 +60,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IMarkdownDocumentRenderer, MarkdownDocumentRenderer>();
 builder.Services.AddScoped<IPostQueryService, PostQueryService>();
 builder.Services.AddScoped<IPostReactionService, PostReactionService>();
+builder.Services.AddScoped<IPostCommentService, PostCommentService>();
 builder.Services.AddScoped<ITagQueryService, TagQueryService>();
 builder.Services.AddScoped<IAdminPostService, AdminPostService>();
 builder.Services.AddScoped<IAdminMarkdownService, AdminMarkdownService>();
