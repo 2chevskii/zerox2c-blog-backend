@@ -109,10 +109,7 @@ jobs:
       DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
       APP_HOST: ${{ secrets.APP_HOST }}
       APP_PORT: ${{ secrets.APP_PORT }}
-      MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
-      MYSQL_USER: ${{ secrets.MYSQL_USER }}
-      MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
-      MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+      MYSQL_CONNECTION_STRING: ${{ secrets.MYSQL_CONNECTION_STRING }}
       JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
       JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE }}
       JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}

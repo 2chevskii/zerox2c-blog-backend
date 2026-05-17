@@ -2,9 +2,9 @@
 
 The blog is deployed from three independent public repositories:
 
-- `blog-frontend`: reader SPA.
-- `blog-admin-frontend`: admin SPA.
-- `blog-backend`: API and environment-owned MySQL service.
+- `blog-frontend`: builds and publishes reader SPA static files.
+- `blog-admin-frontend`: builds and publishes admin SPA static files.
+- `blog-backend`: deploys the API Docker container.
 
 Branch mapping:
 
@@ -22,15 +22,15 @@ All three repositories use these environment secrets:
 - `VPS_SSH_PRIVATE_KEY`: private key for the SSH user.
 - `VPS_SSH_PORT`: optional, defaults to `22`.
 - `DEPLOY_ROOT`: optional, defaults to `/opt/0x2c-blog`.
+
+Backend-only deployment secrets:
+
 - `APP_HOST`: optional, defaults to `127.0.0.1`.
-- `APP_PORT`: optional. If omitted, workflows use the standard port for the app/environment.
+- `APP_PORT`: optional. If omitted, workflows use the standard API port for the environment.
 
-Backend-only environment secrets:
+Backend-only application secrets:
 
-- `MYSQL_DATABASE`
-- `MYSQL_USER`
-- `MYSQL_PASSWORD`
-- `MYSQL_ROOT_PASSWORD`
+- `MYSQL_CONNECTION_STRING`: connection string for the separately deployed MySQL service.
 - `JWT_ISSUER`
 - `JWT_AUDIENCE`
 - `JWT_SIGNING_KEY`
@@ -39,16 +39,16 @@ Backend-only environment secrets:
 - `OPENAPI_ENABLED`: optional, defaults to `false`.
 - `DEVELOPER_EXCEPTION_PAGE_ENABLED`: optional, defaults to `false`.
 
-Default loopback ports:
+Default API loopback ports:
 
-| Environment | Reader | Admin | API |
-| --- | ---: | ---: | ---: |
-| production | 5101 | 5102 | 5103 |
-| development | 5201 | 5202 | 5203 |
+| Environment | API |
+| --- | ---: |
+| production | 5103 |
+| development | 5203 |
 
 ## VPS Layout
 
-Each repository deploys only its own service under:
+Each repository deploys only its own files or service under:
 
 ```text
 /opt/0x2c-blog/{environment}/{app}
@@ -60,62 +60,28 @@ Current app names are:
 - `admin`
 - `api`
 
-The backend deploy writes a Docker Compose file with `api` and `mysql` services and a private `mysql-data` volume per environment. Frontend deploys write a one-service Compose file for their static Nginx container.
+Frontend deployments publish static files under:
 
-## Host Nginx
-
-Host-level Nginx owns HTTPS and routes to the loopback ports. Keep `/api/` unstripped when proxying to the backend. Strip `/admin/` when proxying to the admin frontend.
-
-Production example:
-
-```nginx
-server {
-    listen 80;
-    server_name 0x2c.dev;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name 0x2c.dev;
-
-    ssl_certificate /etc/letsencrypt/live/0x2c.dev/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/0x2c.dev/privkey.pem;
-
-    location = /admin {
-        return 308 /admin/;
-    }
-
-    location /admin/ {
-        proxy_pass http://127.0.0.1:5102/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:5103;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:5101;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
+```text
+/opt/0x2c-blog/{environment}/reader/www
+/opt/0x2c-blog/{environment}/admin/www
 ```
 
-Development uses the same shape with `server_name dev.0x2c.dev` and ports `5201`, `5202`, and `5203`.
+The backend deploy writes a one-service Docker Compose file for the API. It does not create or manage MySQL; database provisioning, storage, backups, and lifecycle are handled by a separate deployment.
+
+## External Routing
+
+An external routing server owns HTTPS, static file serving, SPA fallback behavior, and API reverse proxying. Keep `/api/` unstripped when proxying to the backend API. Serve the admin SPA under `/admin/`.
+
+Production routing shape:
+
+```text
+/api/*    -> proxy to http://127.0.0.1:5103/api/*
+/admin/   -> serve /opt/0x2c-blog/production/admin/www with SPA fallback
+/         -> serve /opt/0x2c-blog/production/reader/www with SPA fallback
+```
+
+Development uses the same shape with `dev.0x2c.dev`, `/opt/0x2c-blog/development/...`, and API port `5203`.
 
 ## Post-Deploy Checks
 
