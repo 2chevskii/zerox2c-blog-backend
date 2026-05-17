@@ -35,6 +35,18 @@ jobs:
         shell: bash
         run: bash scripts/resolve-deployment-context.sh
 
+      - name: Log resolved deployment context
+        shell: bash
+        run: |
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF_NAME}"
+          echo "sha=${GITHUB_SHA}"
+          echo "deploy=${{ steps.vars.outputs.deploy }}"
+          echo "environment=${{ steps.vars.outputs.environment }}"
+          echo "environment_url=${{ steps.vars.outputs.environment_url }}"
+          echo "image=${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.image_tag }}"
+          echo "default_app_port=${{ steps.vars.outputs.default_app_port }}"
+
   build:
     name: Build API
     runs-on: ubuntu-latest
@@ -47,11 +59,20 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Log .NET environment
+        run: |
+          dotnet --version
+          dotnet --info
+
       - name: Restore
-        run: dotnet restore ZeroX2C.Blog.slnx
+        run: |
+          echo "Restoring solution ZeroX2C.Blog.slnx"
+          dotnet restore ZeroX2C.Blog.slnx
 
       - name: Build
-        run: dotnet build ZeroX2C.Blog.slnx --configuration Release --no-restore
+        run: |
+          echo "Building solution ZeroX2C.Blog.slnx in Release configuration"
+          dotnet build ZeroX2C.Blog.slnx --configuration Release --no-restore
 
   container:
     name: Build and smoke test image
@@ -64,15 +85,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build --target runtime --tag zerox2c-blog-api:test .
+        run: |
+          echo "Building API Docker image zerox2c-blog-api:test"
+          docker build --target runtime --tag zerox2c-blog-api:test .
+          docker image ls zerox2c-blog-api:test
 
       - name: Smoke test Docker image
         shell: bash
-        run: bash scripts/smoke-docker-image.sh zerox2c-blog-api:test
+        run: |
+          echo "Running API Docker smoke test"
+          bash scripts/smoke-docker-image.sh zerox2c-blog-api:test
 
       - name: Log in to GHCR
         if: needs.context.outputs.deploy == 'true'
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+        run: |
+          echo "Logging in to GHCR as ${GITHUB_ACTOR}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
 
       - name: Push Docker image
         if: needs.context.outputs.deploy == 'true'
@@ -80,9 +108,13 @@ jobs:
           IMAGE: ${{ needs.context.outputs.image }}
           IMAGE_TAG: ${{ needs.context.outputs.image_tag }}
         run: |
+          echo "Tagging image as ${IMAGE}:sha-${GITHUB_SHA}"
           docker tag zerox2c-blog-api:test "${IMAGE}:sha-${GITHUB_SHA}"
+          echo "Tagging image as ${IMAGE}:${IMAGE_TAG}"
           docker tag zerox2c-blog-api:test "${IMAGE}:${IMAGE_TAG}"
+          echo "Pushing ${IMAGE}:sha-${GITHUB_SHA}"
           docker push "${IMAGE}:sha-${GITHUB_SHA}"
+          echo "Pushing ${IMAGE}:${IMAGE_TAG}"
           docker push "${IMAGE}:${IMAGE_TAG}"
 
   deploy:
@@ -123,4 +155,9 @@ jobs:
 
       - name: Deploy over SSH
         shell: bash
-        run: bash scripts/deploy.sh
+        run: |
+          echo "Deploying image ${IMAGE}"
+          echo "GitHub Environment: ${DEPLOY_ENVIRONMENT}"
+          echo "Default API port: ${DEFAULT_APP_PORT}"
+          echo "Deploy root: ${DEPLOY_ROOT:-/opt/0x2c-blog}"
+          bash scripts/deploy.sh

@@ -6,13 +6,21 @@ network_name="zerox2c-blog-ci"
 mysql_container="zerox2c-blog-mysql-ci"
 api_container="zerox2c-blog-api-ci"
 
+log() {
+  echo "[smoke-test] $*"
+}
+
 cleanup() {
+  log "Cleaning up temporary containers and network"
   docker rm -f "${api_container}" "${mysql_container}" >/dev/null 2>&1 || true
   docker network rm "${network_name}" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+log "Starting smoke test for image ${image}"
+log "Creating Docker network ${network_name}"
 docker network create "${network_name}" >/dev/null
+log "Starting temporary MySQL container ${mysql_container}"
 docker run \
   --detach \
   --name "${mysql_container}" \
@@ -27,12 +35,15 @@ docker run \
   --collation-server=utf8mb4_0900_ai_ci \
   >/dev/null
 
+log "Waiting for MySQL readiness"
 for attempt in {1..60}; do
   if docker exec "${mysql_container}" mysqladmin ping -h 127.0.0.1 -uroot -prootpassword --silent >/dev/null 2>&1; then
+    log "MySQL is ready after attempt ${attempt}"
     break
   fi
 
   if [[ "${attempt}" == "60" ]]; then
+    log "MySQL did not become ready; dumping logs"
     docker logs "${mysql_container}"
     exit 1
   fi
@@ -40,6 +51,7 @@ for attempt in {1..60}; do
   sleep 2
 done
 
+log "Starting API container ${api_container}"
 docker run \
   --detach \
   --name "${api_container}" \
@@ -55,12 +67,15 @@ docker run \
   "${image}" \
   >/dev/null
 
+log "Waiting for API health endpoint"
 for attempt in {1..60}; do
   if curl --fail --silent --show-error http://127.0.0.1:18080/api/health >/dev/null 2>&1; then
+    log "API health endpoint passed after attempt ${attempt}"
     exit 0
   fi
 
   if [[ "${attempt}" == "60" ]]; then
+    log "API health endpoint did not pass; dumping logs"
     docker logs "${api_container}"
     exit 1
   fi
