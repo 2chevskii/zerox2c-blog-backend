@@ -1,5 +1,6 @@
 using ZeroX2C.Blog.API.Modules.Posts.Contracts;
 using ZeroX2C.Blog.API.Modules.Posts.Contracts.Tags;
+using ZeroX2C.Blog.API.Modules.Posts.Markdown;
 using ZeroX2C.Blog.API.Modules.Posts.Tags;
 
 namespace ZeroX2C.Blog.API.Modules.Posts;
@@ -12,7 +13,10 @@ public static class PostMapper
             post.Slug,
             post.Title,
             post.Subtitle,
-            post.Excerpt,
+            post.LikeCount,
+            post.DislikeCount,
+            post.CommentCount,
+            post.ViewCount,
             post.CoverImageId,
             post.BannerImageId,
             ToTagResponses(post),
@@ -25,8 +29,12 @@ public static class PostMapper
             post.Slug,
             post.Title,
             post.Subtitle,
-            post.Excerpt,
-            post.Body,
+            GetPublishedDocument(post).Html,
+            GetPublishedDocument(post).ReadingMinutes,
+            post.LikeCount,
+            post.DislikeCount,
+            post.CommentCount,
+            post.ViewCount,
             post.CoverImageId,
             post.BannerImageId,
             ToTagResponses(post),
@@ -39,9 +47,14 @@ public static class PostMapper
             post.Slug,
             post.Title,
             post.Subtitle,
-            post.Excerpt,
-            post.Body,
+            GetDraftDocument(post).Markdown,
+            GetDraftDocument(post).Html,
+            GetDraftDocument(post).ReadingMinutes,
             post.Status,
+            post.LikeCount,
+            post.DislikeCount,
+            post.CommentCount,
+            post.ViewCount,
             post.CoverImageId,
             post.BannerImageId,
             ToTagResponses(post),
@@ -54,6 +67,30 @@ public static class PostMapper
             post.DeletedBy,
             post.DeletedAt
         );
+
+    public static MarkdownDocumentContent CloneDocument(MarkdownDocumentContent document) =>
+        new()
+        {
+            Markdown = document.Markdown,
+            Html = document.Html,
+            PlainText = document.PlainText,
+            ReadingMinutes = document.ReadingMinutes,
+        };
+
+    private static MarkdownDocumentContent GetDraftDocument(Post post) =>
+        post.MarkdownDraft?.Document ?? EmptyDocument();
+
+    private static MarkdownDocumentContent GetPublishedDocument(Post post) =>
+        post.MarkdownDocument?.Document ?? EmptyDocument();
+
+    private static MarkdownDocumentContent EmptyDocument() =>
+        new()
+        {
+            Markdown = string.Empty,
+            Html = string.Empty,
+            PlainText = string.Empty,
+            ReadingMinutes = 1,
+        };
 
     private static IReadOnlyCollection<TagResponse> ToTagResponses(Post post) =>
         post.PostTags

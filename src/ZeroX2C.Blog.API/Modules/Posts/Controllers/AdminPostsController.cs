@@ -104,6 +104,9 @@ public sealed class AdminPostsController(IAdminPostService adminPostService) : C
             AdminPostOperationStatus.InvalidImagePurpose => ValidationProblem(
                 "Cover image must use cover purpose and banner image must use banner purpose."
             ),
+            AdminPostOperationStatus.InvalidMarkdownImageReference => ValidationProblem(
+                "Markdown contains one or more unknown local image references."
+            ),
             _ => Problem(),
         };
 

@@ -1,19 +1,26 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using ZeroX2C.Blog.API.Modules.Posts.Contracts;
+using ZeroX2C.Blog.API.Modules.Posts.Tags;
 using ZeroX2C.Blog.API.Persistence;
 
 namespace ZeroX2C.Blog.API.Modules.Posts;
 
-public sealed class PostQueryService(BlogDbContext dbContext) : IPostQueryService
+public sealed class PostQueryService(BlogDbContext dbContext, IMemoryCache memoryCache)
+    : IPostQueryService
 {
+    private static readonly TimeSpan PostDetailsCacheLifetime = TimeSpan.FromMinutes(5);
+
     public async Task<IReadOnlyCollection<PostListItemResponse>> GetPublishedPostsAsync(
         int offset,
         int limit,
         string? search,
+        string? tags,
         CancellationToken cancellationToken
     )
     {
         var query = PublishedPostsQuery();
+        var tagNames = NormalizeTagNames(tags);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -21,7 +28,27 @@ public sealed class PostQueryService(BlogDbContext dbContext) : IPostQueryServic
             query = query.Where(post =>
                 post.Title.Contains(normalizedSearch)
                 || (post.Subtitle != null && post.Subtitle.Contains(normalizedSearch))
-                || (post.Excerpt != null && post.Excerpt.Contains(normalizedSearch))
+                || post.PostTags.Any(postTag =>
+                    !postTag.IsDeleted
+                    && !postTag.Tag.IsDeleted
+                    && postTag.Tag.Name.Contains(normalizedSearch)
+                )
+            );
+        }
+
+        if (tagNames.Length > 0)
+        {
+            query = query.Where(post =>
+                post.PostTags
+                    .Where(postTag =>
+                        !postTag.IsDeleted
+                        && !postTag.Tag.IsDeleted
+                        && tagNames.Contains(postTag.Tag.Name)
+                    )
+                    .Select(postTag => postTag.Tag.Name)
+                    .Distinct()
+                    .Count()
+                == tagNames.Length
             );
         }
 
@@ -40,10 +67,57 @@ public sealed class PostQueryService(BlogDbContext dbContext) : IPostQueryServic
         CancellationToken cancellationToken
     )
     {
+        var cacheKey = $"published-post:id:{id:N}";
+
+        if (
+            memoryCache.TryGetValue<PostDetailsResponse>(cacheKey, out var cachedPost)
+            && cachedPost is not null
+        )
+        {
+            return await IncrementViewCountAsync(cachedPost, cancellationToken);
+        }
+
         var post = await PublishedPostsQuery()
             .SingleOrDefaultAsync(existingPost => existingPost.Id == id, cancellationToken);
+        if (post is null)
+        {
+            return null;
+        }
 
-        return post is null ? null : PostMapper.ToDetailsResponse(post);
+        var response = await IncrementViewCountAsync(
+            PostMapper.ToDetailsResponse(post),
+            cancellationToken
+        );
+
+        return response;
+    }
+
+    private async Task<PostDetailsResponse> IncrementViewCountAsync(
+        PostDetailsResponse post,
+        CancellationToken cancellationToken
+    )
+    {
+        await dbContext.Posts
+            .Where(existingPost => existingPost.Id == post.Id && !existingPost.IsDeleted)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    existingPost => existingPost.ViewCount,
+                    existingPost => existingPost.ViewCount + 1
+                ),
+                cancellationToken
+            );
+
+        var updatedPost = post with { ViewCount = post.ViewCount + 1 };
+        memoryCache.Set(
+            $"published-post:id:{post.Id:N}",
+            updatedPost,
+            new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = PostDetailsCacheLifetime,
+            }
+        );
+
+        return updatedPost;
     }
 
     public async Task<PostDetailsResponse?> GetPublishedPostBySlugAsync(
@@ -57,22 +131,33 @@ public sealed class PostQueryService(BlogDbContext dbContext) : IPostQueryServic
             return null;
         }
 
-        var post = await PublishedPostsQuery()
-            .SingleOrDefaultAsync(
-                existingPost => existingPost.Slug == normalizedSlug,
-                cancellationToken
-            );
+        var postId = await PublishedPostsQuery()
+            .Where(existingPost => existingPost.Slug == normalizedSlug)
+            .Select(existingPost => (Guid?)existingPost.Id)
+            .SingleOrDefaultAsync(cancellationToken);
 
-        return post is null ? null : PostMapper.ToDetailsResponse(post);
+        return postId is null
+            ? null
+            : await GetPublishedPostByIdAsync(postId.Value, cancellationToken);
     }
 
     private IQueryable<Post> PublishedPostsQuery() =>
         dbContext
             .Posts.Include(post => post.PostTags.Where(postTag => !postTag.IsDeleted))
             .ThenInclude(postTag => postTag.Tag)
+            .Include(post => post.MarkdownDocument)
             .Where(post =>
                 !post.IsDeleted
                 && post.Status == PostStatus.Published
                 && post.PublishedAt != null
+                && post.MarkdownDocument != null
             );
+
+    private static string[] NormalizeTagNames(string? tags) =>
+        (tags ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(TagName.Normalize)
+            .Where(tagName => !string.IsNullOrWhiteSpace(tagName) && TagName.IsValid(tagName))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray()!;
 }

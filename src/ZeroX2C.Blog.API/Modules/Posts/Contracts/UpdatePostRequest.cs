@@ -8,8 +8,7 @@ public sealed record UpdatePostRequest(
     string? Slug,
     [Required, MaxLength(256)] string Title,
     [MaxLength(512)] string? Subtitle,
-    [MaxLength(1000)] string? Excerpt,
-    [Required] string Body,
+    [Required] string BodyMarkdown,
     Guid? CoverImageId,
     Guid? BannerImageId,
     IReadOnlyCollection<Guid>? TagIds

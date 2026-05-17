@@ -9,4 +9,8 @@ public enum AdminPostOperationStatus
     TagNotFound,
     ImageNotFound,
     InvalidImagePurpose,
+    InvalidMarkdownImageReference,
+    EmptyImageFile,
+    ImageFileTooLarge,
+    UnsupportedImageContentType,
 }

@@ -8,6 +8,7 @@ public interface IPostQueryService
         int offset,
         int limit,
         string? search,
+        string? tags,
         CancellationToken cancellationToken
     );
 
