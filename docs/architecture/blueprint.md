@@ -135,6 +135,12 @@ Implemented public API:
 `GET /api/posts` supports `offset`, `limit`, `search`, comma-separated `tags`,
 and inclusive `from` / `to` published-date filters.
 
+The `search` parameter uses MySQL full-text search over post title, subtitle,
+slug, published article plain text, and tag name/description metadata. Search
+logic is owned by MySQL routines: `SearchPublishedPostIds` and
+`SearchAdminPostIds` return ordered post ids using indexed full-text matching
+plus bounded typo-tolerant matching over recent filtered candidates.
+
 Implemented admin API:
 
 - `POST /api/admin/images`

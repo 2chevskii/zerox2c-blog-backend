@@ -159,7 +159,7 @@ Rules:
 Public users can:
 
 - View published post list.
-- Search published posts by title, subtitle, or tag.
+- Search published posts by loose full-text terms across title, subtitle, slug, published article text, and tag metadata.
 - Filter published post lists by tag and published date range.
 - View published post details by id.
 - View published post details by slug.
@@ -169,7 +169,7 @@ Admins can:
 
 - List non-deleted posts.
 - Filter posts by status.
-- Search posts by title, subtitle, or slug.
+- Search posts by loose full-text terms across title, subtitle, slug, and draft article text.
 - Create draft posts.
 - Update post content and tag assignments.
 - Publish posts.

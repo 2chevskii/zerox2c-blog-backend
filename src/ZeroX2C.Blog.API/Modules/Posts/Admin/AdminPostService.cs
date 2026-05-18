@@ -29,13 +29,15 @@ public sealed class AdminPostService(
             query = query.Where(post => post.Status == status);
         }
 
-        if (!string.IsNullOrWhiteSpace(search))
+        var normalizedSearch = NormalizeSearch(search);
+        if (normalizedSearch is not null)
         {
-            var normalizedSearch = search.Trim();
-            query = query.Where(post =>
-                post.Title.Contains(normalizedSearch)
-                || (post.Subtitle != null && post.Subtitle.Contains(normalizedSearch))
-                || (post.Slug != null && post.Slug.Contains(normalizedSearch))
+            return await SearchPostsAsync(
+                normalizedSearch,
+                status,
+                offset,
+                limit,
+                cancellationToken
             );
         }
 
@@ -47,6 +49,37 @@ public sealed class AdminPostService(
             .ToListAsync(cancellationToken);
 
         return posts.Select(PostMapper.ToAdminResponse).ToArray();
+    }
+
+    private async Task<IReadOnlyCollection<AdminPostResponse>> SearchPostsAsync(
+        string search,
+        PostStatus? status,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken
+    )
+    {
+        var searchResults = await dbContext
+            .PostSearchResults.FromSqlInterpolated(
+                $"CALL SearchAdminPostIds({search}, {status.ToString()}, {offset}, {limit})"
+            )
+            .AsNoTracking()
+            .ToArrayAsync(cancellationToken);
+
+        var postIds = searchResults.Select(result => result.PostId).ToArray();
+        if (postIds.Length == 0)
+        {
+            return [];
+        }
+
+        var posts = await ActivePostsQuery()
+            .Where(post => postIds.Contains(post.Id))
+            .ToDictionaryAsync(post => post.Id, cancellationToken);
+
+        return postIds
+            .Where(posts.ContainsKey)
+            .Select(postId => PostMapper.ToAdminResponse(posts[postId]))
+            .ToArray();
     }
 
     public async Task<AdminPostOperationResult<AdminPostResponse>> GetPostAsync(
@@ -504,4 +537,7 @@ public sealed class AdminPostService(
 
     private static string? NormalizeOptionalText(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? NormalizeSearch(string? search) =>
+        string.IsNullOrWhiteSpace(search) ? null : search.Trim();
 }

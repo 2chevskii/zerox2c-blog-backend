@@ -27,23 +27,22 @@ public sealed class PostQueryService(
         CancellationToken cancellationToken
     )
     {
-        var query = PublishedPostsQuery();
         var tagNames = NormalizeTagNames(tags);
-
-        if (!string.IsNullOrWhiteSpace(search))
+        var normalizedSearch = NormalizeSearch(search);
+        if (normalizedSearch is not null)
         {
-            var normalizedSearch = search.Trim();
-            query = query.Where(post =>
-                post.Title.Contains(normalizedSearch)
-                || (post.Subtitle != null && post.Subtitle.Contains(normalizedSearch))
-                || post.PostTags.Any(postTag =>
-                    !postTag.IsDeleted
-                    && !postTag.Tag.IsDeleted
-                    && postTag.Tag.Name.Contains(normalizedSearch)
-                )
+            return await SearchPublishedPostsAsync(
+                normalizedSearch,
+                string.Join(',', tagNames),
+                from?.ToDateTime(TimeOnly.MinValue),
+                to?.ToDateTime(TimeOnly.MinValue),
+                offset,
+                limit,
+                cancellationToken
             );
         }
 
+        var query = PublishedPostsQuery();
         if (tagNames.Length > 0)
         {
             query = query.Where(post =>
@@ -80,6 +79,49 @@ public sealed class PostQueryService(
             .ToListAsync(cancellationToken);
 
         return posts.Select(PostMapper.ToListItemResponse).ToArray();
+    }
+
+    private async Task<IReadOnlyCollection<PostListItemResponse>> SearchPublishedPostsAsync(
+        string search,
+        string tagNames,
+        DateTime? from,
+        DateTime? to,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken
+    )
+    {
+        var searchResults = await dbContext
+            .PostSearchResults.FromSqlInterpolated(
+                $"CALL SearchPublishedPostIds({search}, {tagNames}, {from}, {to}, {offset}, {limit})"
+            )
+            .AsNoTracking()
+            .ToArrayAsync(cancellationToken);
+
+        return await GetPublishedListItemsBySearchResultsAsync(searchResults, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<string>> GetPublishedSearchKeywordsAsync(
+        string? search,
+        int limit,
+        CancellationToken cancellationToken
+    )
+    {
+        var sources = await dbContext
+            .Posts.Where(post =>
+                !post.IsDeleted
+                && post.Status == PostStatus.Published
+                && post.PublishedAt != null
+                && post.MarkdownDocument != null
+            )
+            .Select(post => new PostKeywordSource(
+                post.Title,
+                post.Subtitle,
+                post.MarkdownDocument!.Document.PlainText
+            ))
+            .ToArrayAsync(cancellationToken);
+
+        return PostKeywordExtractor.ExtractTopKeywords(sources, search, limit);
     }
 
     public async Task<PostDetailsResponse?> GetPublishedPostByIdAsync(
@@ -229,4 +271,28 @@ public sealed class PostQueryService(
             .Where(tagName => !string.IsNullOrWhiteSpace(tagName) && TagName.IsValid(tagName))
             .Distinct(StringComparer.Ordinal)
             .ToArray()!;
+
+    private static string? NormalizeSearch(string? search) =>
+        string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+
+    private async Task<IReadOnlyCollection<PostListItemResponse>> GetPublishedListItemsBySearchResultsAsync(
+        IReadOnlyCollection<PostSearchResult> searchResults,
+        CancellationToken cancellationToken
+    )
+    {
+        var postIds = searchResults.Select(result => result.PostId).ToArray();
+        if (postIds.Length == 0)
+        {
+            return [];
+        }
+
+        var posts = await PublishedPostsQuery()
+            .Where(post => postIds.Contains(post.Id))
+            .ToDictionaryAsync(post => post.Id, cancellationToken);
+
+        return postIds
+            .Where(posts.ContainsKey)
+            .Select(postId => PostMapper.ToListItemResponse(posts[postId]))
+            .ToArray();
+    }
 }

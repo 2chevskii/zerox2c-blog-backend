@@ -51,6 +51,7 @@ Public endpoints:
 - `POST /api/profile/avatar`
 - `PUT /api/profile/comment-replies/{replyCommentId:guid}/seen`
 - `GET /api/posts`
+- `GET /api/posts/keywords`
 - `GET /api/posts/{id:guid}`
 - `GET /api/posts/slugs/{slug}/id`
 - `GET /api/posts/{id:guid}/comments`
@@ -62,8 +63,14 @@ Public endpoints:
 - `GET /api/images/{id:guid}`
 
 `GET /api/posts` accepts `offset`, `limit`, `search`, `tags`, `from`, and `to`.
-The `tags` value is a comma-separated list of tag names. `from` and `to` are
-inclusive published-date filters in `yyyy-MM-dd` format.
+The `search` value uses MySQL full-text search across post metadata, published
+article text, and tag metadata. Search is executed by database routines with a
+bounded typo-tolerant fallback for looser matches. The `tags` value is a
+comma-separated list of tag names. `from` and `to` are inclusive published-date
+filters in `yyyy-MM-dd` format.
+
+`GET /api/posts/keywords` accepts `search` and `limit` and returns generated
+keyword suggestions from published post titles, subtitles, and bodies.
 
 Admin endpoints:
 

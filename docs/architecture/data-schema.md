@@ -145,6 +145,7 @@ Constraints and indexes:
 - `CreatedAt` required.
 - Index: `Status`, `PublishedAt`.
 - Index: `CreatedAt`.
+- Full-text index: `Title`, `Subtitle`, `Slug`.
 - Index: `CoverImageId`.
 - Index: `BannerImageId`.
 - Optional foreign key from `CoverImageId` to `Images`, `SetNull` on delete.
@@ -190,6 +191,7 @@ Owned document fields:
 Constraints and indexes:
 
 - Unique index: `PostId`.
+- Full-text index: `PlainText`.
 - Foreign key to `Posts`, cascade delete.
 
 Rules:
@@ -207,6 +209,7 @@ Fields and owned document fields match `PostMarkdownDraft`.
 Constraints and indexes:
 
 - Unique index: `PostId`.
+- Full-text index: `PlainText`.
 - Foreign key to `Posts`, cascade delete.
 
 Rules:
@@ -260,6 +263,7 @@ Constraints and indexes:
 - `Description` max length: 512.
 - `CreatedAt` required.
 - Unique index: `Name`.
+- Full-text index: `Name`, `Description`.
 
 Rules:
 
@@ -293,7 +297,24 @@ Rules:
 - The application soft-deletes removed tag assignments through the audit interceptor.
 - Updating post tags removes missing active assignments and can restore previously soft-deleted assignments.
 
-## 10. Image
+## 10. Post Search Routines
+
+Implemented database routines:
+
+- `NormalizePostSearchBooleanQuery`
+- `PostSearchLevenshteinDistance`
+- `PostSearchIsLooseMatch`
+- `SearchPublishedPostIds`
+- `SearchAdminPostIds`
+
+Rules:
+
+- Public search routine applies published-post, date-range, and tag filters in MySQL.
+- Admin search routine applies non-deleted and optional status filters in MySQL.
+- Routines return ordered post ids; application services hydrate those ids through normal EF queries and existing response mappers.
+- Matching combines indexed MySQL full-text search with bounded typo-tolerant matching over recent filtered candidates.
+
+## 11. Image
 
 Implemented entity: `Modules/Assets/Images/Image.cs`.
 
@@ -329,7 +350,7 @@ Rules:
 - Admin uploads currently accept JPEG, PNG, WebP, and GIF up to 5 MB.
 - Public retrieval streams the blob from `GET /api/images/{id}`.
 
-## 11. Planned Entities
+## 12. Planned Entities
 
 ### Page
 
@@ -382,7 +403,7 @@ Rules:
 - Only image attachments are in scope for v1.
 - Attachment ownership and visibility should follow the comment.
 
-## 12. Relationship Overview
+## 13. Relationship Overview
 
 ```mermaid
 erDiagram
@@ -478,7 +499,7 @@ erDiagram
     }
 ```
 
-## 13. Open Schema Questions
+## 14. Open Schema Questions
 
 - Whether post slugs should become immutable after publish.
 - Whether slug redirects are needed.

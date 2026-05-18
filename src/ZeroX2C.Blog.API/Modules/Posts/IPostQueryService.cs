@@ -14,6 +14,12 @@ public interface IPostQueryService
         CancellationToken cancellationToken
     );
 
+    Task<IReadOnlyCollection<string>> GetPublishedSearchKeywordsAsync(
+        string? search,
+        int limit,
+        CancellationToken cancellationToken
+    );
+
     Task<PostDetailsResponse?> GetPublishedPostByIdAsync(
         Guid id,
         CancellationToken cancellationToken

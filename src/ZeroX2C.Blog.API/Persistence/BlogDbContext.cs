@@ -19,6 +19,7 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
     public DbSet<PostComment> PostComments { get; set; }
     public DbSet<PostView> PostViews { get; set; }
     public DbSet<PostCommentReplyState> PostCommentReplyStates { get; set; }
+    public DbSet<PostSearchResult> PostSearchResults { get; set; }
     public DbSet<Tag> Tags { get; set; }
     public DbSet<PostTag> PostTags { get; set; }
     public DbSet<Image> Images { get; set; }
@@ -93,6 +94,7 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(post => post.Slug).IsUnique();
             entity.HasIndex(post => new { post.Status, post.PublishedAt });
             entity.HasIndex(post => post.CreatedAt);
+            entity.HasIndex(post => new { post.Title, post.Subtitle, post.Slug }).IsFullText();
 
             entity.HasOne<Image>()
                 .WithMany()
@@ -103,6 +105,13 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
                 .WithMany()
                 .HasForeignKey(post => post.BannerImageId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<PostSearchResult>(entity =>
+        {
+            entity.HasNoKey();
+            entity.ToView(null);
+            entity.Property(result => result.PostId).HasColumnName("PostId");
         });
 
         builder.Entity<PostMarkdownDraft>(entity =>
@@ -284,6 +293,7 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.Property(tag => tag.CreatedAt).IsRequired();
 
             entity.HasIndex(tag => tag.Name).IsUnique();
+            entity.HasIndex(tag => new { tag.Name, tag.Description }).IsFullText();
         });
 
         builder.Entity<PostTag>(entity =>
@@ -347,6 +357,7 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             .HasColumnName("PlainText")
             .HasColumnType("longtext")
             .IsRequired();
+        document.HasIndex(value => value.PlainText).IsFullText();
         document.Property(value => value.ReadingMinutes)
             .HasColumnName("ReadingMinutes")
             .IsRequired();

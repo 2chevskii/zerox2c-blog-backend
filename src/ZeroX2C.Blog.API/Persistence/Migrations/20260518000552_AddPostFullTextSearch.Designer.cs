@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ZeroX2C.Blog.API.Persistence;
 
@@ -11,9 +12,11 @@ using ZeroX2C.Blog.API.Persistence;
 namespace ZeroX2C.Blog.API.Persistence.Migrations
 {
     [DbContext(typeof(BlogDbContext))]
-    partial class BlogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518000552_AddPostFullTextSearch")]
+    partial class AddPostFullTextSearch
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -468,17 +471,6 @@ namespace ZeroX2C.Blog.API.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("PostReactions", (string)null);
-                });
-
-            modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Posts.PostSearchResult", b =>
-                {
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("PostId");
-
-                    b.ToTable((string)null);
-
-                    b.ToView(null, (string)null);
                 });
 
             modelBuilder.Entity("ZeroX2C.Blog.API.Modules.Posts.PostView", b =>

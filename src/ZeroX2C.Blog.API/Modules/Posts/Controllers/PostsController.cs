@@ -38,6 +38,15 @@ public sealed class PostsController(
             )
         );
 
+    [HttpGet("keywords")]
+    public async Task<ActionResult<IReadOnlyCollection<string>>> GetSearchKeywords(
+        string? search = null,
+        [Range(1, 20)]
+        int limit = 6,
+        CancellationToken cancellationToken = default
+    ) =>
+        Ok(await postQueryService.GetPublishedSearchKeywordsAsync(search, limit, cancellationToken));
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PostDetailsResponse>> GetPostDetails(
         Guid id,
