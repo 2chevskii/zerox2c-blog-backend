@@ -301,9 +301,7 @@ Rules:
 
 Implemented database routines:
 
-- `NormalizePostSearchBooleanQuery`
-- `PostSearchLevenshteinDistance`
-- `PostSearchIsLooseMatch`
+- `ApplyLoosePostSearchMatches`
 - `SearchPublishedPostIds`
 - `SearchAdminPostIds`
 
