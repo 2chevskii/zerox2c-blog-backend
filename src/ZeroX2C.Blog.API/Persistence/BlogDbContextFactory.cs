@@ -8,9 +8,9 @@ public sealed class BlogDbContextFactory : IDesignTimeDbContextFactory<BlogDbCon
     public BlogDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<BlogDbContext>()
-            .UseMySql(
-                "Server=127.0.0.1;Port=3306;Database=dev;User=root;Password=rootpassword;AllowPublicKeyRetrieval=True;SslMode=None;",
-                new MySqlServerVersion(new Version(8, 0, 36))
+            .UseNpgsql(
+                "Host=127.0.0.1;Port=5432;Database=dev;Username=postgres;Password=postgrespassword;",
+                npgsql => { }
             )
             .Options;
 

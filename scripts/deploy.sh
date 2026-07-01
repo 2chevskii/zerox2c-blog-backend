@@ -16,7 +16,7 @@ require_env() {
 require_env VPS_HOST
 require_env VPS_SSH_USER
 require_env VPS_SSH_PRIVATE_KEY
-require_env MYSQL_CONNECTION_STRING
+require_env POSTGRES_CONNECTION_STRING
 require_env JWT_ISSUER
 require_env JWT_AUDIENCE
 require_env JWT_SIGNING_KEY
@@ -59,7 +59,7 @@ log "Generating API environment payload without printing secrets"
 cat > "${payload_dir}/api.env" <<API_ENV
 ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://+:8080
-ConnectionStrings__MySql=${MYSQL_CONNECTION_STRING}
+ConnectionStrings__PostgreSql=${POSTGRES_CONNECTION_STRING}
 Jwt__Issuer=${JWT_ISSUER}
 Jwt__Audience=${JWT_AUDIENCE}
 Jwt__SigningKey=${JWT_SIGNING_KEY}

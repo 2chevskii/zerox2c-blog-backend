@@ -297,20 +297,15 @@ Rules:
 - The application soft-deletes removed tag assignments through the audit interceptor.
 - Updating post tags removes missing active assignments and can restore previously soft-deleted assignments.
 
-## 10. Post Search Routines
+## 10. Post Search
 
-Implemented database routines:
-
-- `ApplyLoosePostSearchMatches`
-- `SearchPublishedPostIds`
-- `SearchAdminPostIds`
+Implemented search:
 
 Rules:
 
-- Public search routine applies published-post, date-range, and tag filters in MySQL.
-- Admin search routine applies non-deleted and optional status filters in MySQL.
-- Routines return ordered post ids; application services hydrate those ids through normal EF queries and existing response mappers.
-- Matching combines indexed MySQL full-text search with bounded typo-tolerant matching over recent filtered candidates.
+- Public search applies published-post, date-range, and tag filters in EF queries.
+- Admin search applies non-deleted and optional status filters in EF queries.
+- Matching uses PostgreSQL full-text search expressions over post metadata, Markdown text, and tag metadata.
 
 ## 11. Image
 
@@ -332,7 +327,7 @@ Constraints and indexes:
 - `ContentType` max length: 128, required.
 - `SizeBytes` required.
 - `Purpose` stored as string, max length: 32, required.
-- `Content` stored as `longblob`, required.
+- `Content` stored as `bytea`, required.
 - `CreatedAt` required.
 - Index: `Purpose`.
 
@@ -503,6 +498,6 @@ erDiagram
 - Whether slug redirects are needed.
 - Whether pages should share a publication abstraction with posts.
 - Whether comments are flat or threaded.
-- When image blobs should move from MySQL to object storage.
+- When image blobs should move from PostgreSQL to object storage.
 - Whether image dimensions, alt text, and deduplication hashes should be added.
 - Whether blocked users should be rejected from all login flows consistently.

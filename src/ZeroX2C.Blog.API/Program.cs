@@ -29,15 +29,14 @@ builder.Services.AddDbContext<BlogDbContext>(
     (serviceProvider, options) =>
     {
         var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-        var connectionString = configuration.GetRequiredConnectionString("MySql");
+        var connectionString = configuration.GetRequiredConnectionString("PostgreSql");
         var auditInterceptor =
             serviceProvider.GetRequiredService<EntityAuditSaveChangesInterceptor>();
-        options.UseMySql(
+        options.UseNpgsql(
             connectionString,
-            ServerVersion.AutoDetect(connectionString),
-            mysql =>
+            npgsql =>
             {
-                mysql.MigrationsAssembly(Assembly.GetExecutingAssembly());
+                npgsql.MigrationsAssembly(Assembly.GetExecutingAssembly());
             }
         );
         options.AddInterceptors(auditInterceptor);
@@ -176,7 +175,7 @@ if (!app.Environment.IsProduction() || app.Configuration.GetValue<bool>("OpenApi
     app.MapScalarApiReference();
 }
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy" })).AllowAnonymous();
+app.MapGet("/api/health", Results.NoContent).AllowAnonymous();
 app.UseAuthentication();
 app.UseMiddleware<AuthenticationContextMiddleware>();
 app.UseAuthorization();

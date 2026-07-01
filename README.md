@@ -1,6 +1,6 @@
 # 0x2c.dev Blog Backend
 
-Backend API for the 0x2c.dev personal website. The application is a modular ASP.NET Core backend with custom authentication, admin content-management endpoints, public blog-post queries, EF Core persistence, and MySQL as the primary database.
+Backend API for the 0x2c.dev personal website. The application is a modular ASP.NET Core backend with custom authentication, admin content-management endpoints, public blog-post queries, EF Core persistence, and PostgreSQL as the primary database.
 
 This repository is no longer a generic .NET template. Treat it as an application codebase.
 
@@ -8,8 +8,8 @@ This repository is no longer a generic .NET template. Treat it as an application
 
 - .NET 10 target framework.
 - ASP.NET Core controllers.
-- EF Core 9.x with `Pomelo.EntityFrameworkCore.MySql`.
-- MySQL 8.4 for local development through Docker Compose.
+- EF Core 10.x with `Npgsql.EntityFrameworkCore.PostgreSQL`.
+- PostgreSQL 17 for local development through Docker Compose.
 - Markdig for backend Markdown parsing/rendering.
 - HtmlSanitizer for backend-rendered HTML sanitization.
 - JWT bearer authentication.
@@ -24,7 +24,7 @@ src/ZeroX2C.Blog.API/
     Api/                  Route constraints and API infrastructure.
     Bootstrap/            Startup bootstrap pipeline.
   Modules/
-    Assets/               MySQL-backed image upload and retrieval.
+    Assets/               PostgreSQL-backed image upload and retrieval.
     Posts/                Blog posts, tags, public queries, admin use cases.
     Shared/               Generic shared domain primitives.
     Users/                Users, authentication, authorization, admin user operations.
@@ -63,9 +63,8 @@ Public endpoints:
 - `GET /api/images/{id:guid}`
 
 `GET /api/posts` accepts `offset`, `limit`, `search`, `tags`, `from`, and `to`.
-The `search` value uses MySQL full-text search across post metadata, published
-article text, and tag metadata. Search is executed by database routines with a
-bounded typo-tolerant fallback for looser matches. The `tags` value is a
+The `search` value uses PostgreSQL full-text search across post metadata,
+published article text, and tag metadata. The `tags` value is a
 comma-separated list of tag names. `from` and `to` are inclusive published-date
 filters in `yyyy-MM-dd` format.
 
@@ -104,12 +103,12 @@ Prerequisites:
 
 - .NET SDK compatible with `global.json`.
 - Docker Desktop or another Docker Compose compatible runtime.
-- MySQL port `3306` available, or override the connection string.
+- PostgreSQL port `5432` available, or override the connection string.
 
-Start local MySQL:
+Start local PostgreSQL:
 
 ```powershell
-docker compose up -d mysql
+docker compose up -d postgres
 ```
 
 Build:
@@ -132,7 +131,7 @@ OpenAPI and Scalar are mapped outside production by `Program.cs`; use the local 
 
 Current configuration sections:
 
-- `ConnectionStrings:MySql`: MySQL connection string.
+- `ConnectionStrings:PostgreSql`: PostgreSQL connection string.
 - `Jwt:Issuer`
 - `Jwt:Audience`
 - `Jwt:SigningKey`: must be at least 32 UTF-8 bytes.

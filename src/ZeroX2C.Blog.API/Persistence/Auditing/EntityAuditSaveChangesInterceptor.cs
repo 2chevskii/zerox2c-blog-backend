@@ -61,5 +61,5 @@ public sealed class EntityAuditSaveChangesInterceptor(
     }
 
     private AuditStamp GetAuditStamp() =>
-        new AuditStamp(timeProvider.GetUtcNow().DateTime, authenticationContext.UserId);
+        new AuditStamp(timeProvider.GetUtcNow().UtcDateTime, authenticationContext.UserId);
 }

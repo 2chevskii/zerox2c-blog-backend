@@ -1,6 +1,6 @@
 # Deployment
 
-This repository deploys the 0x2c.dev backend API. It does not deploy MySQL and it does not deploy the public routing/static server. Those are separate infrastructure concerns.
+This repository deploys the 0x2c.dev backend API. It does not deploy PostgreSQL and it does not deploy the public routing/static server. Those are separate infrastructure concerns.
 
 Related repositories:
 
@@ -10,7 +10,7 @@ Related repositories:
 
 ## Branches And Environments
 
-The same workflow handles CI and deployment:
+The deployment workflow handles CI checks and environment deployment:
 
 | Git ref | GitHub Environment | Public URL | Deploys |
 | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ The backend deployment assumes these already exist:
 
 - A Linux host reachable by SSH.
 - Docker Engine with the Docker Compose plugin on that host.
-- A separately deployed MySQL service reachable from the API container.
+- A separately deployed PostgreSQL service reachable from the API container.
 - An external routing server that terminates HTTPS and proxies `/api/` to the API loopback port.
 
 The routing server must preserve the `/api` prefix when proxying to the API. It should forward `Host`, `X-Forwarded-Host`, `X-Forwarded-For`, and `X-Forwarded-Proto`; the API uses ASP.NET Core forwarded-header middleware so Steam callback URLs use the public HTTPS host.
@@ -57,7 +57,7 @@ Required deployment secrets:
 - `VPS_HOST`: SSH hostname or IP address.
 - `VPS_SSH_USER`: SSH user.
 - `VPS_SSH_PRIVATE_KEY`: private key for `VPS_SSH_USER`.
-- `MYSQL_CONNECTION_STRING`: full API connection string for the separately deployed MySQL service.
+- `POSTGRES_CONNECTION_STRING`: full API connection string for the separately deployed PostgreSQL service.
 - `JWT_ISSUER`
 - `JWT_AUDIENCE`
 - `JWT_SIGNING_KEY`: at least 32 UTF-8 bytes.
@@ -79,21 +79,25 @@ Workflow-provided variables used by `scripts/deploy.sh`:
 - `IMAGE`: GHCR image reference with the environment-specific commit tag.
 - `DEFAULT_APP_PORT`: `5103` for production or `5203` for development.
 
-Example `MYSQL_CONNECTION_STRING` shape:
+Example `POSTGRES_CONNECTION_STRING` shape:
 
 ```text
-Server=mysql-host;Port=3306;Database=blog;User=blog_api;Password=...;AllowPublicKeyRetrieval=True;SslMode=None;
+Host=postgres-host;Port=5432;Database=blog;Username=blog_api;Password=...;
 ```
 
 ## Scripts
 
 - `scripts/resolve-deployment-context.sh`: maps the GitHub event/ref to deployment outputs such as environment name, image tag, environment URL, and default API port.
-- `scripts/smoke-docker-image.sh`: starts a temporary CI-only MySQL container, starts the API image, and checks `GET /api/health`.
+- `scripts/smoke-docker-image.sh`: starts a temporary CI-only PostgreSQL container, starts the API image, and checks `GET /api/health`.
 - `scripts/deploy.sh`: creates `api.env` and `compose.yaml`, uploads them over SSH, runs `docker compose pull && docker compose up -d --remove-orphans`, then checks the API health endpoint through the host loopback binding.
 
-The CI smoke-test MySQL container is temporary and local to the GitHub runner. It is not part of deployment.
+The CI smoke-test PostgreSQL container is temporary and local to the GitHub runner. It is not part of deployment.
 
 ## Workflow Process
+
+`.github/workflows/main.yml` builds the Docker runtime image on every pushed commit and publishes GHCR tags for the ref and commit SHA.
+
+`.github/workflows/deploy.yml` handles branch-scoped build, smoke test, publish, and SSH deployment for `develop` and `master`.
 
 1. Checkout and resolve deployment context.
    The workflow runs `scripts/resolve-deployment-context.sh`. Pull requests build but set `deploy=false`. Pushes to `develop` and `master` set `deploy=true`.
@@ -143,7 +147,7 @@ compose.yaml
 api.env
 ```
 
-The generated Compose file contains only the `api` service. It does not create MySQL, volumes, routing rules, certificates, or static frontend services.
+The generated Compose file contains only the `api` service. It does not create PostgreSQL, volumes, routing rules, certificates, or static frontend services.
 
 ## External Routing Shape
 

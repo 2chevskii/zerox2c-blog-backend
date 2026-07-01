@@ -231,7 +231,7 @@ Implemented behavior:
 - Allowed post image purposes are `Cover`, `Banner`, and `Embedded`.
 - Admins upload images through `POST /api/admin/images` as multipart form-data with `file` and `purpose`.
 - Public clients retrieve stored images through `GET /api/images/{id}`.
-- Images are stored as MySQL blobs with original file name, content type, size, purpose, and audit metadata.
+- Images are stored as PostgreSQL `bytea` blobs with original file name, content type, size, purpose, and audit metadata.
 - Upload validation rejects empty files, files larger than 5 MB, and non-image content types outside JPEG, PNG, WebP, and GIF.
 - Post cover and banner references are validated against active image rows and expected image purpose.
 
@@ -239,7 +239,7 @@ Planned behavior:
 
 - Allowed use cases include blog post banners, post body images, and comment images.
 - Non-image file storage is out of scope for v1.
-- Media storage should stay behind a module boundary so MySQL blob storage can later move to object storage.
+- Media storage should stay behind a module boundary so database blob storage can later move to object storage.
 
 Current state:
 

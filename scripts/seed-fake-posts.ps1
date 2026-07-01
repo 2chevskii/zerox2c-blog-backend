@@ -282,7 +282,7 @@ try {
         "Navigation density on a personal site",
         "Content fixtures for frontend iteration",
         "Audited entity writes and authorship",
-        "Local Docker MySQL development",
+        "Local Docker PostgreSQL development",
         "Slug design and collision handling",
         "Accessibility checks for article pages",
         "Rendering tables without breaking mobile",

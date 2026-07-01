@@ -19,7 +19,6 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
     public DbSet<PostComment> PostComments { get; set; }
     public DbSet<PostView> PostViews { get; set; }
     public DbSet<PostCommentReplyState> PostCommentReplyStates { get; set; }
-    public DbSet<PostSearchResult> PostSearchResults { get; set; }
     public DbSet<Tag> Tags { get; set; }
     public DbSet<PostTag> PostTags { get; set; }
     public DbSet<Image> Images { get; set; }
@@ -36,7 +35,11 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.Property(user => user.Username).HasMaxLength(64).IsRequired();
             entity.Property(user => user.Email).HasMaxLength(256).IsRequired();
             entity.Property(user => user.PasswordHash).HasMaxLength(512).IsRequired();
-            entity.Property(user => user.Role).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity
+                .Property(user => user.Role)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
             entity.Property(user => user.BlockedReason).HasMaxLength(512);
             entity.Property(user => user.CreatedAt).IsRequired();
 
@@ -44,7 +47,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(user => user.Email).IsUnique();
             entity.HasIndex(user => user.AvatarImageId);
 
-            entity.HasOne<Image>()
+            entity
+                .HasOne<Image>()
                 .WithMany()
                 .HasForeignKey(user => user.AvatarImageId)
                 .OnDelete(DeleteBehavior.SetNull);
@@ -62,7 +66,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(login => new { login.Provider, login.ProviderUserId }).IsUnique();
             entity.HasIndex(login => login.UserId);
 
-            entity.HasOne(login => login.User)
+            entity
+                .HasOne(login => login.User)
                 .WithMany(user => user.ExternalLogins)
                 .HasForeignKey(login => login.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -80,11 +85,13 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.Property(post => post.DislikeCount).HasDefaultValue(0L).IsRequired();
             entity.Property(post => post.CommentCount).HasDefaultValue(0L).IsRequired();
             entity.Property(post => post.ViewCount).HasDefaultValue(0L).IsRequired();
-            entity.Property<string>("Body")
-                .HasColumnType("longtext")
+            entity
+                .Property<string>("Body")
+                .HasColumnType("text")
                 .HasDefaultValue(string.Empty)
                 .IsRequired();
-            entity.Property(post => post.Status)
+            entity
+                .Property(post => post.Status)
                 .HasConversion<string>()
                 .HasMaxLength(32)
                 .HasDefaultValue(PostStatus.Draft)
@@ -94,24 +101,27 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(post => post.Slug).IsUnique();
             entity.HasIndex(post => new { post.Status, post.PublishedAt });
             entity.HasIndex(post => post.CreatedAt);
-            entity.HasIndex(post => new { post.Title, post.Subtitle, post.Slug }).IsFullText();
+            entity
+                .HasIndex(post => new
+                {
+                    post.Title,
+                    post.Subtitle,
+                    post.Slug,
+                })
+                .HasMethod("GIN")
+                .IsTsVectorExpressionIndex("simple");
 
-            entity.HasOne<Image>()
+            entity
+                .HasOne<Image>()
                 .WithMany()
                 .HasForeignKey(post => post.CoverImageId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne<Image>()
+            entity
+                .HasOne<Image>()
                 .WithMany()
                 .HasForeignKey(post => post.BannerImageId)
                 .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        builder.Entity<PostSearchResult>(entity =>
-        {
-            entity.HasNoKey();
-            entity.ToView(null);
-            entity.Property(result => result.PostId).HasColumnName("PostId");
         });
 
         builder.Entity<PostMarkdownDraft>(entity =>
@@ -123,7 +133,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
 
             entity.HasIndex(draft => draft.PostId).IsUnique();
 
-            entity.HasOne(draft => draft.Post)
+            entity
+                .HasOne(draft => draft.Post)
                 .WithOne(post => post.MarkdownDraft)
                 .HasForeignKey<PostMarkdownDraft>(draft => draft.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -140,7 +151,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
 
             entity.HasIndex(document => document.PostId).IsUnique();
 
-            entity.HasOne(document => document.Post)
+            entity
+                .HasOne(document => document.Post)
                 .WithOne(post => post.MarkdownDocument)
                 .HasForeignKey<PostMarkdownDocument>(document => document.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -153,7 +165,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.ToTable("PostMarkdownImages");
             entity.HasKey(image => image.Id);
 
-            entity.Property(image => image.LocalPath)
+            entity
+                .Property(image => image.LocalPath)
                 .HasMaxLength(PostMarkdownImage.LocalPathMaxLength)
                 .IsRequired();
             entity.Property(image => image.CreatedAt).IsRequired();
@@ -163,12 +176,14 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(image => new { image.PostId, image.ImageId }).IsUnique();
             entity.HasIndex(image => new { image.PostId, image.LocalPath }).IsUnique();
 
-            entity.HasOne(image => image.Post)
+            entity
+                .HasOne(image => image.Post)
                 .WithMany(post => post.MarkdownImages)
                 .HasForeignKey(image => image.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(image => image.Image)
+            entity
+                .HasOne(image => image.Image)
                 .WithMany()
                 .HasForeignKey(image => image.ImageId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -179,7 +194,8 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.ToTable("PostReactions");
             entity.HasKey(reaction => reaction.Id);
 
-            entity.Property(reaction => reaction.ReactionType)
+            entity
+                .Property(reaction => reaction.ReactionType)
                 .HasConversion<string>()
                 .HasMaxLength(32)
                 .IsRequired();
@@ -189,12 +205,14 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(reaction => reaction.UserId);
             entity.HasIndex(reaction => new { reaction.PostId, reaction.UserId }).IsUnique();
 
-            entity.HasOne(reaction => reaction.Post)
+            entity
+                .HasOne(reaction => reaction.Post)
                 .WithMany(post => post.Reactions)
                 .HasForeignKey(reaction => reaction.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(reaction => reaction.User)
+            entity
+                .HasOne(reaction => reaction.User)
                 .WithMany(user => user.PostReactions)
                 .HasForeignKey(reaction => reaction.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -205,10 +223,12 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.ToTable("PostComments");
             entity.HasKey(comment => comment.Id);
 
-            entity.Property(comment => comment.Body)
+            entity
+                .Property(comment => comment.Body)
                 .HasMaxLength(PostComment.MaxBodyLength)
                 .IsRequired();
-            entity.Property(comment => comment.Status)
+            entity
+                .Property(comment => comment.Status)
                 .HasConversion<string>()
                 .HasMaxLength(32)
                 .HasDefaultValue(PostCommentStatus.Visible)
@@ -220,17 +240,20 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(comment => comment.ParentCommentId);
             entity.HasIndex(comment => new { comment.PostId, comment.CreatedAt });
 
-            entity.HasOne(comment => comment.Post)
+            entity
+                .HasOne(comment => comment.Post)
                 .WithMany(post => post.Comments)
                 .HasForeignKey(comment => comment.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(comment => comment.AuthorUser)
+            entity
+                .HasOne(comment => comment.AuthorUser)
                 .WithMany(user => user.PostComments)
                 .HasForeignKey(comment => comment.AuthorUserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(comment => comment.ParentComment)
+            entity
+                .HasOne(comment => comment.ParentComment)
                 .WithMany(comment => comment.Replies)
                 .HasForeignKey(comment => comment.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -250,12 +273,14 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(view => new { view.UserId, view.LastViewedAt });
             entity.HasIndex(view => new { view.PostId, view.UserId }).IsUnique();
 
-            entity.HasOne(view => view.Post)
+            entity
+                .HasOne(view => view.Post)
                 .WithMany(post => post.Views)
                 .HasForeignKey(view => view.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(view => view.User)
+            entity
+                .HasOne(view => view.User)
                 .WithMany(user => user.PostViews)
                 .HasForeignKey(view => view.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -272,12 +297,14 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(state => state.ReplyCommentId);
             entity.HasIndex(state => new { state.UserId, state.ReplyCommentId }).IsUnique();
 
-            entity.HasOne(state => state.User)
+            entity
+                .HasOne(state => state.User)
                 .WithMany(user => user.CommentReplyStates)
                 .HasForeignKey(state => state.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(state => state.ReplyComment)
+            entity
+                .HasOne(state => state.ReplyComment)
                 .WithMany(comment => comment.ReplyStates)
                 .HasForeignKey(state => state.ReplyCommentId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -293,7 +320,10 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.Property(tag => tag.CreatedAt).IsRequired();
 
             entity.HasIndex(tag => tag.Name).IsUnique();
-            entity.HasIndex(tag => new { tag.Name, tag.Description }).IsFullText();
+            entity
+                .HasIndex(tag => new { tag.Name, tag.Description })
+                .HasMethod("GIN")
+                .IsTsVectorExpressionIndex("english");
         });
 
         builder.Entity<PostTag>(entity =>
@@ -307,12 +337,14 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.HasIndex(postTag => postTag.TagId);
             entity.HasIndex(postTag => new { postTag.PostId, postTag.TagId }).IsUnique();
 
-            entity.HasOne(postTag => postTag.Post)
+            entity
+                .HasOne(postTag => postTag.Post)
                 .WithMany(post => post.PostTags)
                 .HasForeignKey(postTag => postTag.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(postTag => postTag.Tag)
+            entity
+                .HasOne(postTag => postTag.Tag)
                 .WithMany(tag => tag.PostTags)
                 .HasForeignKey(postTag => postTag.TagId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -326,11 +358,12 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
             entity.Property(image => image.OriginalFileName).HasMaxLength(256).IsRequired();
             entity.Property(image => image.ContentType).HasMaxLength(128).IsRequired();
             entity.Property(image => image.SizeBytes).IsRequired();
-            entity.Property(image => image.Purpose)
+            entity
+                .Property(image => image.Purpose)
                 .HasConversion<string>()
                 .HasMaxLength(32)
                 .IsRequired();
-            entity.Property(image => image.Content).HasColumnType("longblob").IsRequired();
+            entity.Property(image => image.Content).HasColumnType("bytea").IsRequired();
             entity.Property(image => image.CreatedAt).IsRequired();
 
             entity.HasIndex(image => image.Purpose);
@@ -345,20 +378,27 @@ public class BlogDbContext(DbContextOptions<BlogDbContext> options) : DbContext(
     )
         where TOwner : class
     {
-        document.Property(value => value.Markdown)
+        document
+            .Property(value => value.Markdown)
             .HasColumnName("Markdown")
-            .HasColumnType("longtext")
+            .HasColumnType("text")
             .IsRequired();
-        document.Property(value => value.Html)
+        document
+            .Property(value => value.Html)
             .HasColumnName("Html")
-            .HasColumnType("longtext")
+            .HasColumnType("text")
             .IsRequired();
-        document.Property(value => value.PlainText)
+        document
+            .Property(value => value.PlainText)
             .HasColumnName("PlainText")
-            .HasColumnType("longtext")
+            .HasColumnType("text")
             .IsRequired();
-        document.HasIndex(value => value.PlainText).IsFullText();
-        document.Property(value => value.ReadingMinutes)
+        document
+            .HasIndex(value => value.PlainText)
+            .HasMethod("GIN")
+            .IsTsVectorExpressionIndex("simple");
+        document
+            .Property(value => value.ReadingMinutes)
             .HasColumnName("ReadingMinutes")
             .IsRequired();
     }

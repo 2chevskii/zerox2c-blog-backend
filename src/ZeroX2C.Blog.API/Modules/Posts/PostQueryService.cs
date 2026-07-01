@@ -29,19 +29,6 @@ public sealed class PostQueryService(
     {
         var tagNames = NormalizeTagNames(tags);
         var normalizedSearch = NormalizeSearch(search);
-        if (normalizedSearch is not null)
-        {
-            return await SearchPublishedPostsAsync(
-                normalizedSearch,
-                string.Join(',', tagNames),
-                from?.ToDateTime(TimeOnly.MinValue),
-                to?.ToDateTime(TimeOnly.MinValue),
-                offset,
-                limit,
-                cancellationToken
-            );
-        }
-
         var query = PublishedPostsQuery();
         if (tagNames.Length > 0)
         {
@@ -61,14 +48,39 @@ public sealed class PostQueryService(
 
         if (from is not null)
         {
-            var publishedFrom = from.Value.ToDateTime(TimeOnly.MinValue);
+            var publishedFrom = ToUtcDateTime(from.Value);
             query = query.Where(post => post.PublishedAt >= publishedFrom);
         }
 
         if (to is not null)
         {
-            var publishedBefore = to.Value.AddDays(1).ToDateTime(TimeOnly.MinValue);
+            var publishedBefore = ToUtcDateTime(to.Value.AddDays(1));
             query = query.Where(post => post.PublishedAt < publishedBefore);
+        }
+
+        if (normalizedSearch is not null)
+        {
+            query = query.Where(post =>
+                EF.Functions
+                    .ToTsVector(
+                        "simple",
+                        post.Title + " " + (post.Subtitle ?? "") + " " + (post.Slug ?? "")
+                    )
+                    .Matches(EF.Functions.PlainToTsQuery("simple", normalizedSearch))
+                || EF.Functions
+                    .ToTsVector("simple", post.MarkdownDocument!.Document.PlainText)
+                    .Matches(EF.Functions.PlainToTsQuery("simple", normalizedSearch))
+                || post.PostTags.Any(postTag =>
+                    !postTag.IsDeleted
+                    && !postTag.Tag.IsDeleted
+                    && EF.Functions
+                        .ToTsVector(
+                            "simple",
+                            postTag.Tag.Name + " " + (postTag.Tag.Description ?? "")
+                        )
+                        .Matches(EF.Functions.PlainToTsQuery("simple", normalizedSearch))
+                )
+            );
         }
 
         var posts = await query
@@ -79,26 +91,6 @@ public sealed class PostQueryService(
             .ToListAsync(cancellationToken);
 
         return posts.Select(PostMapper.ToListItemResponse).ToArray();
-    }
-
-    private async Task<IReadOnlyCollection<PostListItemResponse>> SearchPublishedPostsAsync(
-        string search,
-        string tagNames,
-        DateTime? from,
-        DateTime? to,
-        int offset,
-        int limit,
-        CancellationToken cancellationToken
-    )
-    {
-        var searchResults = await dbContext
-            .PostSearchResults.FromSqlInterpolated(
-                $"CALL SearchPublishedPostIds({search}, {tagNames}, {from}, {to}, {offset}, {limit})"
-            )
-            .AsNoTracking()
-            .ToArrayAsync(cancellationToken);
-
-        return await GetPublishedListItemsBySearchResultsAsync(searchResults, cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<string>> GetPublishedSearchKeywordsAsync(
@@ -194,7 +186,7 @@ public sealed class PostQueryService(
             return;
         }
 
-        var now = timeProvider.GetUtcNow().DateTime;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         var postView = await dbContext.PostViews.SingleOrDefaultAsync(
             view => view.PostId == postId && view.UserId == authenticationContext.UserId,
             cancellationToken
@@ -275,24 +267,6 @@ public sealed class PostQueryService(
     private static string? NormalizeSearch(string? search) =>
         string.IsNullOrWhiteSpace(search) ? null : search.Trim();
 
-    private async Task<IReadOnlyCollection<PostListItemResponse>> GetPublishedListItemsBySearchResultsAsync(
-        IReadOnlyCollection<PostSearchResult> searchResults,
-        CancellationToken cancellationToken
-    )
-    {
-        var postIds = searchResults.Select(result => result.PostId).ToArray();
-        if (postIds.Length == 0)
-        {
-            return [];
-        }
-
-        var posts = await PublishedPostsQuery()
-            .Where(post => postIds.Contains(post.Id))
-            .ToDictionaryAsync(post => post.Id, cancellationToken);
-
-        return postIds
-            .Where(posts.ContainsKey)
-            .Select(postId => PostMapper.ToListItemResponse(posts[postId]))
-            .ToArray();
-    }
+    private static DateTime ToUtcDateTime(DateOnly date) =>
+        DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
 }

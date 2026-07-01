@@ -3,7 +3,7 @@ set -euo pipefail
 
 image="${1:-zerox2c-blog-api:test}"
 network_name="zerox2c-blog-ci"
-mysql_container="zerox2c-blog-mysql-ci"
+postgres_container="zerox2c-blog-postgres-ci"
 api_container="zerox2c-blog-api-ci"
 
 log() {
@@ -12,7 +12,7 @@ log() {
 
 cleanup() {
   log "Cleaning up temporary containers and network"
-  docker rm -f "${api_container}" "${mysql_container}" >/dev/null 2>&1 || true
+  docker rm -f "${api_container}" "${postgres_container}" >/dev/null 2>&1 || true
   docker network rm "${network_name}" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -20,31 +20,28 @@ trap cleanup EXIT
 log "Starting smoke test for image ${image}"
 log "Creating Docker network ${network_name}"
 docker network create "${network_name}" >/dev/null
-log "Starting temporary MySQL container ${mysql_container}"
+log "Starting temporary PostgreSQL container ${postgres_container}"
 docker run \
   --detach \
-  --name "${mysql_container}" \
+  --name "${postgres_container}" \
   --network "${network_name}" \
-  --network-alias mysql \
-  --env MYSQL_ROOT_PASSWORD=rootpassword \
-  --env MYSQL_DATABASE=blog_ci \
-  --env MYSQL_USER=blog \
-  --env MYSQL_PASSWORD=blogpassword \
-  mysql:8.4 \
-  --character-set-server=utf8mb4 \
-  --collation-server=utf8mb4_0900_ai_ci \
+  --network-alias postgres \
+  --env POSTGRES_DB=blog_ci \
+  --env POSTGRES_USER=blog \
+  --env POSTGRES_PASSWORD=blogpassword \
+  postgres:17-alpine \
   >/dev/null
 
-log "Waiting for MySQL readiness"
+log "Waiting for PostgreSQL readiness"
 for attempt in {1..60}; do
-  if docker exec "${mysql_container}" mysqladmin ping -h 127.0.0.1 -uroot -prootpassword --silent >/dev/null 2>&1; then
-    log "MySQL is ready after attempt ${attempt}"
+  if docker exec "${postgres_container}" pg_isready -h 127.0.0.1 -U blog -d blog_ci >/dev/null 2>&1; then
+    log "PostgreSQL is ready after attempt ${attempt}"
     break
   fi
 
   if [[ "${attempt}" == "60" ]]; then
-    log "MySQL did not become ready; dumping logs"
-    docker logs "${mysql_container}"
+    log "PostgreSQL did not become ready; dumping logs"
+    docker logs "${postgres_container}"
     exit 1
   fi
 
@@ -58,7 +55,7 @@ docker run \
   --network "${network_name}" \
   --publish 18080:8080 \
   --env ASPNETCORE_ENVIRONMENT=Production \
-  --env ConnectionStrings__MySql='Server=mysql;Port=3306;Database=blog_ci;User=blog;Password=blogpassword;AllowPublicKeyRetrieval=True;SslMode=None;' \
+  --env ConnectionStrings__PostgreSql='Host=postgres;Port=5432;Database=blog_ci;Username=blog;Password=blogpassword;' \
   --env Jwt__Issuer=ZeroX2C.Blog.CI \
   --env Jwt__Audience=ZeroX2C.Blog.Api.CI \
   --env Jwt__SigningKey=ci-signing-key-with-at-least-thirty-two-bytes \

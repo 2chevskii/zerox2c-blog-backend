@@ -32,12 +32,19 @@ public sealed class AdminPostService(
         var normalizedSearch = NormalizeSearch(search);
         if (normalizedSearch is not null)
         {
-            return await SearchPostsAsync(
-                normalizedSearch,
-                status,
-                offset,
-                limit,
-                cancellationToken
+            query = query.Where(post =>
+                EF.Functions
+                    .ToTsVector(
+                        "simple",
+                        post.Title + " " + (post.Subtitle ?? "") + " " + (post.Slug ?? "")
+                    )
+                    .Matches(EF.Functions.PlainToTsQuery("simple", normalizedSearch))
+                || (
+                    post.MarkdownDraft != null
+                    && EF.Functions
+                        .ToTsVector("simple", post.MarkdownDraft.Document.PlainText)
+                        .Matches(EF.Functions.PlainToTsQuery("simple", normalizedSearch))
+                )
             );
         }
 
@@ -49,37 +56,6 @@ public sealed class AdminPostService(
             .ToListAsync(cancellationToken);
 
         return posts.Select(PostMapper.ToAdminResponse).ToArray();
-    }
-
-    private async Task<IReadOnlyCollection<AdminPostResponse>> SearchPostsAsync(
-        string search,
-        PostStatus? status,
-        int offset,
-        int limit,
-        CancellationToken cancellationToken
-    )
-    {
-        var searchResults = await dbContext
-            .PostSearchResults.FromSqlInterpolated(
-                $"CALL SearchAdminPostIds({search}, {status.ToString()}, {offset}, {limit})"
-            )
-            .AsNoTracking()
-            .ToArrayAsync(cancellationToken);
-
-        var postIds = searchResults.Select(result => result.PostId).ToArray();
-        if (postIds.Length == 0)
-        {
-            return [];
-        }
-
-        var posts = await ActivePostsQuery()
-            .Where(post => postIds.Contains(post.Id))
-            .ToDictionaryAsync(post => post.Id, cancellationToken);
-
-        return postIds
-            .Where(posts.ContainsKey)
-            .Select(postId => PostMapper.ToAdminResponse(posts[postId]))
-            .ToArray();
     }
 
     public async Task<AdminPostOperationResult<AdminPostResponse>> GetPostAsync(

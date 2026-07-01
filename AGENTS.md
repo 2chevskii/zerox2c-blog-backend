@@ -4,7 +4,7 @@ Agents should always follow this file. It is the operational guide for making pr
 
 ## Project Snapshot
 
-This is the backend for the 0x2c.dev personal website. It is an ASP.NET Core modular monolith with EF Core/MySQL persistence, custom user authentication, admin content-management APIs, public blog-post read APIs, startup bootstrap, and audited entity writes.
+This is the backend for the 0x2c.dev personal website. It is an ASP.NET Core modular monolith with EF Core/PostgreSQL persistence, custom user authentication, admin content-management APIs, public blog-post read APIs, startup bootstrap, and audited entity writes.
 
 The current application project is `src/ZeroX2C.Blog.API/ZeroX2C.Blog.API.csproj`. The solution entry point is `ZeroX2C.Blog.slnx`.
 
@@ -111,7 +111,7 @@ Rules:
 
 - `Program.cs` is the composition root.
 - Required config:
-  - `ConnectionStrings:MySql`
+  - `ConnectionStrings:PostgreSql`
   - `Jwt:Issuer`
   - `Jwt:Audience`
   - `Jwt:SigningKey` with at least 32 UTF-8 bytes

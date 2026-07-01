@@ -37,10 +37,10 @@ Current stack:
 
 - Target framework: `net10.0`.
 - ASP.NET Core controllers.
-- EF Core: 9.x.
-- MySQL provider: `Pomelo.EntityFrameworkCore.MySql` 9.x.
-- Database: MySQL.
-- Local database: Docker Compose with MySQL 8.4.
+- EF Core: 10.x.
+- PostgreSQL provider: `Npgsql.EntityFrameworkCore.PostgreSQL` 10.x.
+- Database: PostgreSQL.
+- Local database: Docker Compose with PostgreSQL 17.
 - Markdown parsing/rendering: `Markdig`.
 - HTML sanitization: `HtmlSanitizer`.
 - API docs: OpenAPI and Scalar.
@@ -48,8 +48,8 @@ Current stack:
 
 Important dependency decision:
 
-- The app targets .NET 10, but EF Core is pinned to 9.x because the selected Pomelo MySQL provider is an EF Core 9 provider.
-- Do not casually upgrade EF Core to 10 without checking MySQL provider compatibility and running migrations against a real MySQL instance.
+- The app targets .NET 10 and uses the matching EF Core/Npgsql 10 provider line.
+- Provider upgrades must be validated by applying migrations against a real PostgreSQL instance.
 
 ## 3. Composition Root
 
@@ -89,7 +89,7 @@ Current module layout:
 ```text
   Modules/
     Assets/
-      Images/               MySQL-backed image entity, upload/read controllers, image services.
+      Images/               PostgreSQL-backed image entity, upload/read controllers, image services.
     Posts/
       Admin/                Admin post/tag use cases and operation results.
       Contracts/            Post DTOs.
@@ -135,11 +135,8 @@ Implemented public API:
 `GET /api/posts` supports `offset`, `limit`, `search`, comma-separated `tags`,
 and inclusive `from` / `to` published-date filters.
 
-The `search` parameter uses MySQL full-text search over post title, subtitle,
-slug, published article plain text, and tag name/description metadata. Search
-logic is owned by MySQL routines: `SearchPublishedPostIds` and
-`SearchAdminPostIds` return ordered post ids using indexed full-text matching
-plus bounded typo-tolerant matching over recent filtered candidates.
+The `search` parameter uses PostgreSQL full-text search over post title,
+subtitle, slug, published article plain text, and tag name/description metadata.
 
 Implemented admin API:
 
@@ -268,14 +265,14 @@ Slug rules:
 
 Image rules:
 
-- `Image` rows store blob bytes in MySQL for the current scope.
+- `Image` rows store blob bytes in PostgreSQL for the current scope.
 - Uploads are admin-only and use multipart form-data with `file` and `purpose`.
 - Public retrieval is by image id so post bodies can embed `/api/images/{id}` URLs.
 - Supported purposes are `Cover`, `Banner`, and `Embedded`.
 - Post cover and banner image ids must refer to active images with matching purpose.
 - Markdown body images are uploaded through the post-scoped Markdown image endpoint and referenced in editor text by local paths such as `images/{imageId}`.
 - Markdown rendering resolves local image paths only when the image is attached to the post.
-- Keep image storage behind the `Modules/Assets/Images` service/controller boundary so MySQL blobs can move to object storage later without changing post services or frontend contracts.
+- Keep image storage behind the `Modules/Assets/Images` service/controller boundary so database blobs can move to object storage later without changing post services or frontend contracts.
 
 ## 10. Security Notes
 

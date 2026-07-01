@@ -13,7 +13,7 @@ Current state:
 - Public post details return raw `body`.
 - The admin frontend renders previews with `markdown-it` in `PostEditorView.vue`.
 - The public frontend renders articles with `markdown-it` and sanitizes with `DOMPurify`.
-- Existing images are stored as MySQL blobs in the `Images` table and streamed from `GET /api/images/{id}`.
+- Existing images are stored as PostgreSQL blobs in the `Images` table and streamed from `GET /api/images/{id}`.
 - Embedded images currently only use `ImagePurpose.Embedded`; there is no post-owned embedded image table or local Markdown path.
 
 NuGet/package research:

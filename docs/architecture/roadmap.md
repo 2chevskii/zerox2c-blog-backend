@@ -17,7 +17,7 @@ Status: Done.
 Completed:
 
 - Runtime target selected: .NET 10.
-- Persistence stack selected: EF Core 9.x with Pomelo MySQL provider.
+- Persistence stack selected: EF Core 10.x with Npgsql PostgreSQL provider.
 - Architecture docs created under `docs/architecture`.
 - Modular monolith direction selected.
 - Custom identity model selected instead of ASP.NET Core Identity.
@@ -34,7 +34,7 @@ Completed:
 
 - Solution and API project exist.
 - Central package management exists.
-- Docker Compose includes local MySQL.
+- Docker Compose includes local PostgreSQL.
 - `Program.cs` configures controllers, OpenAPI/Scalar, authentication, authorization, EF Core, and bootstrap.
 - `BlogDbContext` and migrations exist.
 - Startup applies migrations.
@@ -121,7 +121,7 @@ Status: Partial.
 
 Completed:
 
-- `Image` entity stores original file name, content type, size, purpose, and MySQL blob content.
+- `Image` entity stores original file name, content type, size, purpose, and PostgreSQL blob content.
 - Admin image upload endpoint exists.
 - Public image retrieval endpoint exists.
 - Upload validation covers empty files, 5 MB max size, and allowed image content types.
@@ -131,7 +131,7 @@ Still needed:
 
 - Add comment image integration after comments exist.
 - Add optional width/height, alt text, and deduplication metadata if needed.
-- Decide when to move blobs from MySQL to object storage.
+- Decide when to move blobs from PostgreSQL to object storage.
 
 ## Phase 6. Pages
 
@@ -169,7 +169,7 @@ Still needed:
 - Add CI build/test workflow.
 - Add production configuration notes.
 - Add deployment/migration workflow.
-- Add MySQL backup and restore notes.
+- Add PostgreSQL backup and restore notes.
 - Add structured logging conventions.
 - Add health checks.
 - Add observability guidance.

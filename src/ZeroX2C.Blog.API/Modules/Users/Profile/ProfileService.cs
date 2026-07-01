@@ -114,7 +114,7 @@ public sealed class ProfileService(
             cancellationToken
         );
 
-        var seenAt = timeProvider.GetUtcNow().DateTime;
+        var seenAt = timeProvider.GetUtcNow().UtcDateTime;
         if (state is null)
         {
             state = new PostCommentReplyState

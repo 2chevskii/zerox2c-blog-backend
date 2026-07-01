@@ -141,7 +141,7 @@ jobs:
       DEPLOY_ROOT: ${{ secrets.DEPLOY_ROOT }}
       APP_HOST: ${{ secrets.APP_HOST }}
       APP_PORT: ${{ secrets.APP_PORT }}
-      MYSQL_CONNECTION_STRING: ${{ secrets.MYSQL_CONNECTION_STRING }}
+      POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
       JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
       JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE }}
       JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
